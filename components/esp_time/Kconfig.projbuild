@@ -1,0 +1,19 @@
+menu "ESP time component configuration"
+
+    config ESP_TIME_NTP_SERVER
+        string "NETP Server Address"
+        default "0.europe.pool.ntp.org"
+        help
+            Enter the IP address or domain of the NETP server that the
+            device will connect to.
+    
+    config ESP_TIME_TIME_ZONE
+        string "Time Zone"
+        default "CET-1CEST,M3.5.0/2,M10.5.0/3"
+        help
+            Set the time zone for the device according to the POSIX TZ format.
+            For example, 'CET-1CEST,M3.5.0/2,M10.5.0/3' for Central European Time.
+            More details about the format can be found in the POSIX systems documentation.
+    
+endmenu
+    

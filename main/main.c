@@ -4,15 +4,20 @@
 #include "ethernet_events.h"
 #include "ethernet_module.h"
 #include "network_status.h"
+#include "esp_time.h"
 
 static const char *TAG = "main";
 
 void on_network_connected() {
   ESP_LOGI(TAG, "Network connected! - launching network-related tasks...");
+
+  esp_time_sntp_init(NULL, NULL);
 }
 
 void on_network_disconnected() {
   ESP_LOGI(TAG, "Network disconnected! - deleting network-related tasks...");
+
+  esp_time_sntp_deinit();
 }
 
 void app_main(void) {
