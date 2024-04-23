@@ -6,6 +6,7 @@
 #include "network_status.h"
 #include "esp_time.h"
 #include "esp-now-communication.h"
+#include "old_server_client.h"
 
 static const char *TAG = "main";
 
@@ -13,12 +14,14 @@ void on_network_connected() {
   ESP_LOGI(TAG, "Network connected! - launching network-related tasks...");
 
   esp_time_sntp_init(NULL, NULL);
+  start_old_server_client();
 }
 
 void on_network_disconnected() {
   ESP_LOGI(TAG, "Network disconnected! - deleting network-related tasks...");
 
   esp_time_sntp_deinit();
+  stop_old_server_client();
 }
 
 void app_main(void) {

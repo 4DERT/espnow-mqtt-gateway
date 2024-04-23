@@ -8,6 +8,7 @@
 #include "esp_wifi.h"
 #include "nvs.h"
 #include "nvs_flash.h"
+#include "old_server_client.h"
 
 static const char *TAG = "esp now com";
 
@@ -74,6 +75,11 @@ static void on_esp_now_data_receive(const esp_now_recv_info_t *esp_now_info, con
 
     printf("data len: %d\n", data_len);
     printf("data: %s\n", buf);
+
+    // sendind data to old server
+    if (!strncmp(buf, "{\"name\":\"home_01\"", 17) ||
+        !strncmp(buf, "{\"name\":\"outdoor\"", 17))
+      send_to_old_server(buf);
 
   } else {
     ESP_LOGE(TAG, "Received data has incorrect size");
