@@ -15,18 +15,29 @@ static const char *TAG = "esp now com";
 
 #define ESPNOW_MAXDELAY 100
 
+#define IS_BROADCAST_ADDR(addr) (memcmp(addr, broadcast_mac, ESP_NOW_ETH_ALEN) == 0)
+static uint8_t broadcast_mac[ESP_NOW_ETH_ALEN] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
 typedef struct {
   uint8_t mac_addr[ESP_NOW_ETH_ALEN];
   esp_now_send_status_t status;
 } espnow_event_send_cb_t;
 
+typedef struct {
+  esp_now_recv_info_t esp_now_info;
+  char data[ESP_NOW_MAX_DATA_LEN];
+  int data_len;
+} espnow_event_receive_cb_t;
+
 QueueHandle_t esp_now_send_queue;
+static QueueHandle_t receive_queue;
 static QueueHandle_t send_result_queue;
 
 static void on_esp_now_data_send(const uint8_t *mac_addr, esp_now_send_status_t status);
 static void on_esp_now_data_receive(const esp_now_recv_info_t *esp_now_info, const uint8_t *data, int data_len);
 static void print_recv_info(const esp_now_recv_info_t *esp_now_info);
 static void esp_now_send_task(void *params);
+static void esp_now_receive_task(void *params);
 
 void esp_now_communication_init() {
   // Initialize NVS
@@ -54,6 +65,7 @@ void esp_now_communication_init() {
 
   // init queue
   esp_now_send_queue = xQueueCreate(ESP_NOW_SEND_QUEUE_SIZE, sizeof(esp_now_send_t));
+  receive_queue = xQueueCreate(ESP_NOW_RECIEVE_QUEUE_SIZE, sizeof(espnow_event_receive_cb_t));
   send_result_queue = xQueueCreate(ESP_NOW_RESULT_QUEUE_SIZE, sizeof(espnow_event_send_cb_t));
 
   // esp now init
@@ -67,6 +79,7 @@ void esp_now_communication_init() {
 
   // create send task
   xTaskCreate(esp_now_send_task, "esp_now_send_task", 4096, NULL, 5, NULL);
+  xTaskCreate(esp_now_receive_task, "esp_now_receive_task", 4096, NULL, 5, NULL);
 }
 
 /**
@@ -90,23 +103,22 @@ static void on_esp_now_data_send(const uint8_t *mac_addr, esp_now_send_status_t 
  * @brief Callback function of receiving ESPNOW data.
  */
 static void on_esp_now_data_receive(const esp_now_recv_info_t *esp_now_info, const uint8_t *data, int data_len) {
-  static char buf[ESP_NOW_MAX_DATA_LEN];
-  print_recv_info(esp_now_info);
+  uint8_t *mac_addr = esp_now_info->src_addr;
+  uint8_t *des_addr = esp_now_info->des_addr;
 
-  if (data_len) {
-    memset(buf, 0, sizeof(buf));
-    memcpy(buf, data, data_len);
+  if (mac_addr == NULL || data == NULL || data_len <= 0) {
+    ESP_LOGE(TAG, "Receive cb arg error");
+    return;
+  }
 
-    printf("data len: %d\n", data_len);
-    printf("data: %s\n", buf);
+  espnow_event_receive_cb_t cb;
+  memset(&cb, 0, sizeof(espnow_event_receive_cb_t));
+  memcpy(&cb.esp_now_info, esp_now_info, sizeof(esp_now_recv_info_t));
+  memcpy(&cb.data, data, data_len);
+  cb.data_len = data_len;
 
-    // sendind data to old server
-    if (!strncmp(buf, "{\"name\":\"home_01\"", 17) ||
-        !strncmp(buf, "{\"name\":\"outdoor\"", 17))
-      send_to_old_server(buf);
-
-  } else {
-    ESP_LOGE(TAG, "Received data has incorrect size");
+  if (xQueueSend(receive_queue, &cb, ESPNOW_MAXDELAY) != pdTRUE) {
+    ESP_LOGW(TAG, "Send receive queue fail");
   }
 }
 
@@ -185,5 +197,31 @@ void esp_now_send_task(void *params) {
 
     // remove peer
     esp_now_del_peer(peer_info.peer_addr);
+  }
+}
+
+void esp_now_receive_task(void *params) {
+  static const char *TAG = "espnow_receive_task";
+  BaseType_t queue_status;
+  espnow_event_receive_cb_t data;
+
+  while (1) {
+    // wait for data
+    queue_status = xQueueReceive(receive_queue, &data, portMAX_DELAY);
+    if (queue_status != pdPASS)
+      continue;
+
+    // Parsing data
+    ESP_LOGI(TAG, "Recieved message!");
+    print_recv_info(&data.esp_now_info);
+
+    if (IS_BROADCAST_ADDR(data.esp_now_info.des_addr)) {
+      ESP_LOGI(TAG, "Receive broadcast ESPNOW data");
+    }
+
+    // sendind data to old server
+    if (!strncmp(data.data, "{\"name\":\"home_01\"", 17) ||
+        !strncmp(data.data, "{\"name\":\"outdoor\"", 17))
+      send_to_old_server(data.data);
   }
 }
