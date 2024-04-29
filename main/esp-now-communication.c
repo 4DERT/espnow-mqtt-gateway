@@ -10,6 +10,7 @@
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "old_server_client.h"
+#include "gateway_logic.h"
 
 static const char *TAG = "esp now com";
 
@@ -22,12 +23,6 @@ typedef struct {
   uint8_t mac_addr[ESP_NOW_ETH_ALEN];
   esp_now_send_status_t status;
 } espnow_event_send_cb_t;
-
-typedef struct {
-  esp_now_recv_info_t esp_now_info;
-  char data[ESP_NOW_MAX_DATA_LEN];
-  int data_len;
-} espnow_event_receive_cb_t;
 
 QueueHandle_t esp_now_send_queue;
 static QueueHandle_t receive_queue;
@@ -217,6 +212,7 @@ void esp_now_receive_task(void *params) {
 
     if (IS_BROADCAST_ADDR(data.esp_now_info.des_addr)) {
       ESP_LOGI(TAG, "Receive broadcast ESPNOW data");
+      gw_espnow_broadcast_parser(&data);
     }
 
     // sendind data to old server

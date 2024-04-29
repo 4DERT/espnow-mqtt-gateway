@@ -36,6 +36,12 @@ typedef struct {
   QueueHandle_t* ack_queue;
 } esp_now_send_t;
 
+typedef struct {
+  esp_now_recv_info_t esp_now_info;
+  char data[ESP_NOW_MAX_DATA_LEN];
+  int data_len;
+} espnow_event_receive_cb_t;
+
 extern QueueHandle_t esp_now_send_queue;
 
 QueueHandle_t esp_now_create_send_ack_queue();
