@@ -12,12 +12,13 @@ static const char* TAG = "gw_list";
 static device_t device_list[GW_DEVICE_LIST_SIZE];
 static int device_list_idx;
 
-int gw_find_device_in_list(const device_t* device) {
+device_t* gw_find_device_by_mac(uint8_t mac[]) {
   for (int i = 0; i <= device_list_idx; i++) {
-    if (!memcmp(device_list[i].mac, device->mac, ESP_NOW_ETH_ALEN))
-      return i;
+    if (!memcmp(device_list[i].mac, mac, ESP_NOW_ETH_ALEN))
+      return &device_list[i];
   }
-  return GW_NOT_FOUND;
+
+  return NULL;
 }
 
 bool gw_add_device(device_t* device) {
@@ -26,7 +27,7 @@ bool gw_add_device(device_t* device) {
     return false;
   }
 
-  if (gw_find_device_in_list(device) != GW_NOT_FOUND) {
+  if (gw_find_device_by_mac(device->mac) != NULL) {
     ESP_LOGW(TAG, "Device already paired");
     return false;
   }

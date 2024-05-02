@@ -6,7 +6,7 @@
 #define GW_DEVICE_LIST_SIZE 32
 #define GW_NOT_FOUND -1
 
-int gw_find_device_in_list(const device_t* device);
-inline bool gw_add_device(device_t* device);
+bool gw_add_device(device_t* device);
+device_t* gw_find_device_by_mac(uint8_t mac[]);
 
 #endif //GATEWAY_DEVICE_LIST_H_
