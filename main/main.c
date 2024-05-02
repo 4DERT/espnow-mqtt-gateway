@@ -7,6 +7,7 @@
 #include "esp_time.h"
 #include "esp-now-communication.h"
 #include "old_server_client.h"
+#include "mqtt.h"
 
 static const char *TAG = "main";
 
@@ -15,6 +16,7 @@ void on_network_connected() {
 
   esp_time_sntp_init(NULL, NULL);
   start_old_server_client();
+  mqtt_connected_notify();
 }
 
 void on_network_disconnected() {
@@ -28,6 +30,7 @@ void app_main(void) {
   init_network_status(on_network_connected, on_network_disconnected);
   ethernet_module_init(ethernet_even_handler, ethernet_got_ip_handler);
   esp_now_communication_init();
+  mqtt_init();
 
   while (1) {
     vTaskDelay(pdMS_TO_TICKS(1000));

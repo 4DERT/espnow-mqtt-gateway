@@ -5,4 +5,5 @@ idf_component_register(SRCS
                        "network_status.c"
                        "gateway_logic.c"
                        "gateway_device_list.c"
+                       "mqtt.c"
                        "old_server_client.c" INCLUDE_DIRS ".")
