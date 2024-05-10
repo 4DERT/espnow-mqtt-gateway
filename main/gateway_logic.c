@@ -59,6 +59,13 @@ void gw_espnow_status_parse(espnow_event_receive_cb_t* data) {
 void gw_espnow_message_parser(espnow_event_receive_cb_t* data) {
   ESP_LOGD(TAG, "gw_espnow_message_parser");
 
+  // check if device is paired
+  device_t* device = gw_find_device_by_mac(data->esp_now_info.src_addr);
+  if (device == NULL) {
+    ESP_LOGE(TAG, "Device (" MACSTR ") not paired", MAC2STR(data->esp_now_info.src_addr));
+    return;
+  }
+
   char msg_type = data->data[0];
 
   switch (msg_type) {
@@ -119,4 +126,39 @@ void gw_send_to(const device_t* device, const char* msg, QueueHandle_t* ack_queu
     data.ack_queue = NULL;
 
   xQueueSend(esp_now_send_queue, &data, portMAX_DELAY);
+}
+
+void gw_subscribe_devices() {
+  int num_of_devices = gw_get_device_list_idx();
+  if (num_of_devices == 0)
+    return;
+
+  esp_mqtt_topic_t* topic_list = calloc(num_of_devices, sizeof(esp_mqtt_topic_t));
+  if (topic_list == NULL) {
+    ESP_LOGE(TAG, "Failed to allocate memory\n");
+    return;
+  }
+
+  const device_t* device_list = gw_get_device_list();
+
+  for (int i = 0; i < num_of_devices; i++) {
+    int needed_size = snprintf(NULL, 0, GW_TOPIC_CMD, MAC2STR(device_list[i].mac)) + 1;  // +1 for null terminator
+    char* dynamic_topic = malloc(needed_size);
+    if (dynamic_topic == NULL) {
+      ESP_LOGE(TAG, "Failed to allocate memory for topic string\n");
+      continue;
+    }
+    snprintf(dynamic_topic, needed_size, GW_TOPIC_CMD, MAC2STR(device_list[i].mac));
+    topic_list[i].filter = dynamic_topic;  // Assign dynamically allocated topic
+    topic_list[i].qos = 0;
+  }
+
+  // subscribe topics
+  mqtt_subscribe_multiple(topic_list, num_of_devices);
+
+  // Free memory
+  for (int i = 0; i < num_of_devices; i++) {
+    free((void*)topic_list[i].filter);  // Free each dynamically allocated topic
+  }
+  free(topic_list);
 }

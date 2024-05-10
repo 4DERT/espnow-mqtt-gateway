@@ -2,6 +2,7 @@
 
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
+#include "gateway_device_list.h"
 #include "gateway_logic.h"
 #include "mqtt_client.h"
 
@@ -48,6 +49,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     case MQTT_EVENT_CONNECTED:
       ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
       is_connected = true;
+      gw_subscribe_devices();
       break;
 
     case MQTT_EVENT_DISCONNECTED:
@@ -119,5 +121,16 @@ void mqtt_publish(const char *topic, const char *data, int len, int qos, int ret
   int res = esp_mqtt_client_publish(client, topic, data, len, qos, retain);
   if (res == -1 || res == -2) {
     ESP_LOGE(TAG, "Error (%d) while publishing %s%s", res, topic, data);
+  }
+}
+
+void mqtt_subscribe_multiple(const esp_mqtt_topic_t *topic_list, int size) {
+  if (!is_connected) {
+    ESP_LOGW(TAG, "No connection, topic will be subscribed after connection to the Internet");
+  }
+
+  int res = esp_mqtt_client_subscribe_multiple(client, topic_list, size);
+  if (res == -1 || res == -2) {
+    ESP_LOGE(TAG, "Error (%d) while subscribing multiple topics", res);
   }
 }

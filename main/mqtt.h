@@ -2,6 +2,7 @@
 #define MQTT_H_
 
 #include <stdbool.h>
+#include "mqtt_client.h"
 
 #define MQTT_BROKER_URI "mqtt://192.168.1.6:1883/"
 #define MQTT_WAIT_FOR_CONNECTION_MS 10000
@@ -12,6 +13,7 @@ void mqtt_connected_notify();
 void mqtt_stop();
 bool mqtt_is_connected();
 void mqtt_subscribe(char *topic, int qos);
+void mqtt_subscribe_multiple(const esp_mqtt_topic_t *topic_list, int size);
 void mqtt_publish(const char *topic, const char *data, int len, int qos, int retain);
 
 #endif  // MQTT_H_

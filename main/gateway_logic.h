@@ -22,5 +22,6 @@ typedef struct device_t {
 void gw_espnow_broadcast_parser(espnow_event_receive_cb_t* packet);
 void gw_mqtt_parser(const char* topic, int topic_len, const char* data, int data_len);
 void gw_espnow_message_parser(espnow_event_receive_cb_t* data);
+void gw_subscribe_devices();
 
 #endif //GATEWAY_LOGIC_H_
