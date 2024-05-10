@@ -8,6 +8,7 @@
 #include "esp-now-communication.h"
 #include "old_server_client.h"
 #include "mqtt.h"
+#include "flash_filesystem.h"
 
 static const char *TAG = "main";
 
@@ -27,6 +28,7 @@ void on_network_disconnected() {
 }
 
 void app_main(void) {
+  flash_filesystem_init();
   init_network_status(on_network_connected, on_network_disconnected);
   ethernet_module_init(ethernet_even_handler, ethernet_got_ip_handler);
   esp_now_communication_init();
