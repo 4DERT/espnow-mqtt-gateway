@@ -100,19 +100,15 @@ void gw_mqtt_parser(const char* topic, int topic_len, const char* data, int data
     return;
   }
 
-  // temporary
-  // device_t* device = gw_find_device_by_mac(mac);
-  // if (device == NULL) {
-  //   ESP_LOGE(TAG, "Device with MAC " MACSTR " not found", MAC2STR(mac));
-  //   return;
-  // }
-
-  device_t device;
-  memcpy(device.mac, mac, ESP_NOW_ETH_ALEN);
+  device_t* device = gw_find_device_by_mac(mac);
+  if (device == NULL) {
+    ESP_LOGE(TAG, "Device with MAC " MACSTR " not found", MAC2STR(mac));
+    return;
+  }
 
   char* msg = NULL;
   asprintf(&msg, "%.*s", data_len, data);
-  gw_send_to(&device, msg, NULL);
+  gw_send_to(device, msg, NULL);
   free(msg);
 }
 
