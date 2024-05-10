@@ -7,10 +7,10 @@
 #include "esp_mac.h"
 #include "esp_now.h"
 #include "esp_wifi.h"
+#include "gateway_logic.h"
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "old_server_client.h"
-#include "gateway_logic.h"
 
 static const char *TAG = "esp now com";
 
@@ -207,13 +207,15 @@ void esp_now_receive_task(void *params) {
       continue;
 
     // Parsing data
-    ESP_LOGI(TAG, "Recieved message!");
-    print_recv_info(&data.esp_now_info);
+    // ESP_LOGI(TAG, "Recieved message!");
+    ESP_LOGI(TAG, "Recieved message \"%s\" from " MACSTR " RSSI: %d dBm", data.data, MAC2STR(data.esp_now_info.src_addr), data.esp_now_info.rx_ctrl->rssi);
+    // print_recv_info(&data.esp_now_info);
 
     if (IS_BROADCAST_ADDR(data.esp_now_info.des_addr)) {
       ESP_LOGI(TAG, "Receive broadcast ESPNOW data");
       gw_espnow_broadcast_parser(&data);
-    }
+    } 
+    gw_espnow_message_parser(&data);
 
     // sendind data to old server
     if (!strncmp(data.data, "{\"name\":\"home_01\"", 17) ||
