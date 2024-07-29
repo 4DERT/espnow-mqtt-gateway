@@ -107,6 +107,8 @@ void mqtt_subscribe(char *topic, int qos) {
     ESP_LOGW(TAG, "No connection, topic will be subscribed after connection to the Internet");
   }
 
+  ESP_LOGI(TAG, "subscribing on %s", topic);
+
   int res = esp_mqtt_client_subscribe(client, topic, qos);
   if (res == -1 || res == -2) {
     ESP_LOGE(TAG, "Error (%d) while subscribing %s", res, topic);
@@ -117,6 +119,8 @@ void mqtt_publish(const char *topic, const char *data, int len, int qos, int ret
   if (!is_connected) {
     ESP_LOGW(TAG, "No connection, message will be delivered after connection to the Internet");
   }
+
+  ESP_LOGI(TAG, "publishing on %s %s", topic, data);
 
   int res = esp_mqtt_client_publish(client, topic, data, len, qos, retain);
   if (res == -1 || res == -2) {

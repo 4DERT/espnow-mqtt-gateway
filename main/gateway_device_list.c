@@ -81,6 +81,10 @@ void gw_load_device_list_from_flash() {
   fclose(file);
 
   recalculate_idx();
+
+  for (int i = 0; i < device_list_idx; i++) {
+    device_list[device_list_idx].is_online = false;
+  }
 }
 
 static void recalculate_idx() {

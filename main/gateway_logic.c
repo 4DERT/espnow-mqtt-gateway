@@ -48,11 +48,21 @@ void gw_espnow_status_parse(espnow_event_receive_cb_t* data) {
   // Check message fomrat
   if (sscanf(data->data, "S:%d,%3s", &num, status) != 2) {
     ESP_LOGW(TAG, "Invalid message format");
+    return;
   }
 
   char* topic = NULL;
-  asprintf(&topic, GW_TOPIC_STATUS "%d", MAC2STR(data->esp_now_info.src_addr), num);
+  asprintf(&topic, GW_TOPIC_STATUS "/%d", MAC2STR(data->esp_now_info.src_addr), num);
   mqtt_publish(topic, status, 0, 0, 0);
+  free(topic);
+}
+
+void gw_espnow_data_parse(espnow_event_receive_cb_t* data) {
+  // D:{JSON}
+
+  char* topic = NULL;
+  asprintf(&topic, GW_TOPIC_DATA, MAC2STR(data->esp_now_info.src_addr));
+  mqtt_publish(topic, data->data+2, 0, 0, 0);
   free(topic);
 }
 
@@ -66,11 +76,24 @@ void gw_espnow_message_parser(espnow_event_receive_cb_t* data) {
     return;
   }
 
+  // Send online
+  if (device->is_online == false) {
+    device->is_online = true;
+    char* topic = NULL;
+    asprintf(&topic, GW_TOPIC_STATUS, MAC2STR(data->esp_now_info.src_addr));
+    mqtt_publish(topic, "online", 0, 0, 0);
+    free(topic);
+  }
+
   char msg_type = data->data[0];
 
   switch (msg_type) {
     case GW_STATUS_CHAR:
       gw_espnow_status_parse(data);
+      break;
+    
+    case GW_DATA_CHAR:
+      gw_espnow_data_parse(data);
       break;
 
     default:
@@ -86,7 +109,7 @@ bool get_mac_from_topic(const char* topic, uint8_t* ret_mac) {
       ESP_LOGE(TAG, "Error while retrieving mac address");
       return false;
     }
-    topic_ptr += 3;  // Jump to nex segment (two hex char and ':')
+    topic_ptr += 2;  // Jump to nex segment (two hex char)
   }
 
   return true;
@@ -106,10 +129,24 @@ void gw_mqtt_parser(const char* topic, int topic_len, const char* data, int data
     return;
   }
 
+  QueueHandle_t ack = esp_now_create_send_ack_queue();
+
   char* msg = NULL;
   asprintf(&msg, "%.*s", data_len, data);
-  gw_send_to(device, msg, NULL);
+  gw_send_to(device, msg, &ack);
   free(msg);
+
+  esp_now_send_status_t res;
+  xQueueReceive(ack, &res, portMAX_DELAY);
+  ESP_LOGI(TAG, "data sent - status: %d", res);
+
+  if (res == ESP_NOW_SEND_FAIL) {
+    device->is_online = false;
+    char* topic = NULL;
+    asprintf(&topic, GW_TOPIC_STATUS, MAC2STR(mac));
+    mqtt_publish(topic, "offline", 0, 0, 0);
+    free(topic);
+  }
 }
 
 void gw_send_to(const device_t* device, const char* msg, QueueHandle_t* ack_queue) {
@@ -151,6 +188,16 @@ void gw_subscribe_devices() {
 
   // subscribe topics
   mqtt_subscribe_multiple(topic_list, num_of_devices);
+
+  // send "online"
+  for (int i = 0; i < num_of_devices; i++) {
+    device_t* device = gw_find_device_by_mac(device_list[i].mac);
+    device->is_online = true;
+    char* topic = NULL;
+    asprintf(&topic, GW_TOPIC_STATUS, MAC2STR(device_list[i].mac));
+    mqtt_publish(topic, "online", 0, 0, 0);
+    free(topic);
+  }
 
   // Free memory
   for (int i = 0; i < num_of_devices; i++) {
