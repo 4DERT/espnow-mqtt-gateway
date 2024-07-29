@@ -9,6 +9,10 @@
 #include "mqtt.h"
 #include "string.h"
 
+// If it is 0, the gateway does not reject messages from unpaired devices. 
+// Use with caution, preferably only in a development environment.
+#define PAIR_IS_REQUIRED 0
+
 static const char* TAG = "gateway";
 
 static void gw_send_to(const device_t* device, const char* msg, QueueHandle_t* ack_queue);
@@ -69,6 +73,7 @@ void gw_espnow_data_parse(espnow_event_receive_cb_t* data) {
 void gw_espnow_message_parser(espnow_event_receive_cb_t* data) {
   ESP_LOGD(TAG, "gw_espnow_message_parser");
 
+#if PAIR_IS_REQUIRED == 1
   // check if device is paired
   device_t* device = gw_find_device_by_mac(data->esp_now_info.src_addr);
   if (device == NULL) {
@@ -84,6 +89,7 @@ void gw_espnow_message_parser(espnow_event_receive_cb_t* data) {
     mqtt_publish(topic, "online", 0, 0, 0);
     free(topic);
   }
+#endif
 
   char msg_type = data->data[0];
 
