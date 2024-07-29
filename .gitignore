@@ -3,3 +3,8 @@
 build/
 sdkconfig
 sdkconfig.old
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+.cache
