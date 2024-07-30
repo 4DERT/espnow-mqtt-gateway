@@ -11,6 +11,7 @@ static const char *TAG = "MQTT";
 
 static esp_mqtt_client_handle_t client;
 static bool is_connected;
+static bool is_initialised;
 static SemaphoreHandle_t init_semaphore;
 
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data);
@@ -20,6 +21,11 @@ void mqtt_init() {
   init_semaphore = xSemaphoreCreateBinary();
 
   settings_t settings = settings_get();
+
+  if(!strlen(settings.mqtt_address_uri)) {
+    ESP_LOGW(TAG, "Broker address is not provided");
+    return;
+  }
 
   esp_mqtt_client_config_t mqtt_cfg = {
       .broker.address.uri = settings.mqtt_address_uri,
@@ -32,6 +38,7 @@ void mqtt_init() {
 
   client = esp_mqtt_client_init(&mqtt_cfg);
   esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
+  is_initialised = true;
 
   xSemaphoreTake(init_semaphore, MQTT_WAIT_FOR_CONNECTION_MS / portTICK_PERIOD_MS);
   esp_mqtt_client_start(client);
@@ -111,6 +118,11 @@ bool mqtt_is_connected() {
 }
 
 void mqtt_subscribe(char *topic, int qos) {
+  if(!is_initialised) {
+    ESP_LOGW(TAG, "MQTT is not initialized, the transaction is rejected.");
+    return;
+  }
+
   if (!is_connected) {
     ESP_LOGW(TAG, "No connection, topic will be subscribed after connection to the Internet");
   }
@@ -124,6 +136,11 @@ void mqtt_subscribe(char *topic, int qos) {
 }
 
 void mqtt_publish(const char *topic, const char *data, int len, int qos, int retain) {
+  if(!is_initialised) {
+    ESP_LOGW(TAG, "MQTT is not initialized, subscription is rejected");
+    return;
+  }
+
   if (!is_connected) {
     ESP_LOGW(TAG, "No connection, message will be delivered after connection to the Internet");
   }
@@ -137,6 +154,11 @@ void mqtt_publish(const char *topic, const char *data, int len, int qos, int ret
 }
 
 void mqtt_subscribe_multiple(const esp_mqtt_topic_t *topic_list, int size) {
+  if(!is_initialised) {
+    ESP_LOGW(TAG, "MQTT is not initialized, multiple subscription is rejected");
+    return;
+  }
+
   if (!is_connected) {
     ESP_LOGW(TAG, "No connection, topic will be subscribed after connection to the Internet");
   }
