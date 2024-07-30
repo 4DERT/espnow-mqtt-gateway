@@ -7,6 +7,14 @@ idf_component_register(SRCS
                        "gateway_device_list.c"
                        "mqtt.c"
                        "flash_filesystem.c"
-                       "old_server_client.c" INCLUDE_DIRS ".")
+                       "webserver.c"
+                       "settings_page.c"
+                       "old_server_client.c" 
+                       INCLUDE_DIRS "."
+                       EMBED_FILES
+                       "web/favicon.ico"
+                       "web/index.html"
+                       "web/settings.html"
+                       "web/styles.css")
 
 spiffs_create_partition_image(storage ../partition FLASH_IN_PROJECT)

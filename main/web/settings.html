@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP-NOW to MQTT Gateway - Settings</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+    <nav>
+        <div class="nav-wrapper">
+            <div class="brand-logo">ESP-NOW to MQTT</div>
+            <ul id="nav-mobile" class="right">
+                <li><a href="/">Home</a></li>
+                <li><a href="/settings">Settings</a></li>
+            </ul>
+        </div>
+    </nav>
+    <main>
+        <div class="container">
+            <!-- Settings content will be dynamically generated here -->
+        </div>
+    </main>
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            // Fetch the settings JSON
+            fetch('/api/settings')
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.querySelector('.container');
+                    const form = document.createElement('form');
+                    form.action = '/settings';
+                    form.method = 'post';
+
+                    data.settings.forEach(setting => {
+                        const label = document.createElement('label');
+                        label.htmlFor = setting.name;
+                        label.textContent = setting.label;
+
+                        let input;
+                        switch (setting.type) {
+                            case 'string':
+                                input = document.createElement('input');
+                                input.type = setting.is_password ? 'password' : 'text';
+                                input.id = setting.name;
+                                input.name = setting.name;
+                                input.value = setting.value;
+                                input.required = setting.is_required;
+                                break;
+                            case 'int':
+                                input = document.createElement('input');
+                                input.type = 'number';
+                                input.id = setting.name;
+                                input.name = setting.name;
+                                input.value = setting.value;
+                                input.required = setting.is_required;
+                                break;
+                            case 'bool':
+                                const div = document.createElement('div');
+                                div.className = 'checkbox-container';
+                                input = document.createElement('input');
+                                input.type = 'checkbox';
+                                input.id = setting.name;
+                                input.name = setting.name;
+                                input.checked = setting.value === "true";
+                                div.appendChild(label);
+                                div.appendChild(input);
+                                form.appendChild(div);
+                                return;
+                        }
+
+                        form.appendChild(label);
+                        form.appendChild(input);
+                    });
+
+                    const button = document.createElement('button');
+                    button.type = 'submit';
+                    button.textContent = 'Save Settings';
+                    form.appendChild(button);
+
+                    container.innerHTML = '';
+                    container.appendChild(form);
+                })
+                .catch(error => console.error('Error fetching settings:', error));
+        });
+    </script>
+
+</body>
+
+</html>

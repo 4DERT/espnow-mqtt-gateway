@@ -10,6 +10,7 @@
 #include "mqtt.h"
 #include "flash_filesystem.h"
 #include "gateway_device_list.h"
+#include "webserver.h"
 
 static const char *TAG = "main";
 
@@ -35,6 +36,8 @@ void app_main(void) {
   ethernet_module_init(ethernet_even_handler, ethernet_got_ip_handler);
   esp_now_communication_init();
   mqtt_init();
+
+  webserver_start();
 
   while (1) {
     vTaskDelay(pdMS_TO_TICKS(1000));
