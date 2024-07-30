@@ -29,7 +29,7 @@ typedef struct {
 extern settings_param_t params[];
 
 extern size_t settings_get_params_count(void);
-extern void settings_save_to_flash();
-extern void settings_load_from_flash();
+extern bool settings_save_to_flash();
+extern bool settings_load_from_flash();
 
 #endif // SETTINGS_H_
