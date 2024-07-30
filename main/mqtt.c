@@ -5,6 +5,7 @@
 #include "gateway_device_list.h"
 #include "gateway_logic.h"
 #include "mqtt_client.h"
+#include "settings.h"
 
 static const char *TAG = "MQTT";
 
@@ -18,9 +19,16 @@ static void log_error_if_nonzero(const char *message, int error_code);
 void mqtt_init() {
   init_semaphore = xSemaphoreCreateBinary();
 
+  settings_t settings = settings_get();
+
   esp_mqtt_client_config_t mqtt_cfg = {
-      .broker.address.uri = MQTT_BROKER_URI,
-      .outbox.limit = MQTT_OUTBOX_LIMIT};
+      .broker.address.uri = settings.mqtt_address_uri,
+      .outbox.limit = MQTT_OUTBOX_LIMIT,
+      .credentials.username = settings.mqtt_username,
+      .credentials.authentication.password = settings.mqtt_password,
+      .session.last_will.topic = "/gw/status/",
+      .session.last_will.msg = "offline",
+      .session.last_will.msg_len = strlen("offline")};
 
   client = esp_mqtt_client_init(&mqtt_cfg);
   esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);

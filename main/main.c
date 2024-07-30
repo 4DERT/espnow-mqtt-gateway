@@ -11,6 +11,7 @@
 #include "flash_filesystem.h"
 #include "gateway_device_list.h"
 #include "webserver.h"
+#include "settings.h"
 
 static const char *TAG = "main";
 
@@ -31,6 +32,7 @@ void on_network_disconnected() {
 
 void app_main(void) {
   flash_filesystem_init();
+  settings_load_from_flash();
   gw_load_device_list_from_flash();
   init_network_status(on_network_connected, on_network_disconnected);
   ethernet_module_init(ethernet_even_handler, ethernet_got_ip_handler);

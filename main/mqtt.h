@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include "mqtt_client.h"
 
-#define MQTT_BROKER_URI "mqtt://192.168.1.6:1883/"
 #define MQTT_WAIT_FOR_CONNECTION_MS 10000
 #define MQTT_OUTBOX_LIMIT 25
 
