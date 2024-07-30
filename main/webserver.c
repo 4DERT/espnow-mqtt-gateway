@@ -74,9 +74,9 @@ httpd_handle_t webserver_start(void) {
     httpd_register_uri_handler(server, &index_html);
     // httpd_register_uri_handler(server, &settings_html);
     httpd_register_uri_handler(server, &styles_uri);
-    httpd_register_uri_handler(server, &settings_get);
-    httpd_register_uri_handler(server, &settings_post);
-    httpd_register_uri_handler(server, &settings_json_get);
+    httpd_register_uri_handler(server, &settings_page_get);
+    httpd_register_uri_handler(server, &settings_page_post);
+    httpd_register_uri_handler(server, &settings_page_json_get);
     ESP_LOGI(TAG, "ESP32 Web Server started");
   } else {
     ESP_LOGE(TAG, "ESP32 Web Server not started - ERROR");

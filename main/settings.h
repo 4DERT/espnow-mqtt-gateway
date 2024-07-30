@@ -5,6 +5,7 @@
 #include <stddef.h>
 
 #define MAX_SETTINGS_LENGTH 32
+#define SETTINGS_FILE_PATH "/storage/settings.bin"
 
 typedef enum { TYPE_STRING, TYPE_INT, TYPE_BOOL } settings_param_type_t;
 
@@ -28,5 +29,7 @@ typedef struct {
 extern settings_param_t params[];
 
 extern size_t settings_get_params_count(void);
+extern void settings_save_to_flash();
+extern void settings_load_from_flash();
 
 #endif // SETTINGS_H_

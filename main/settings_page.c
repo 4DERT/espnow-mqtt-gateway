@@ -163,17 +163,17 @@ esp_err_t settings_json_handler(httpd_req_t *req) {
 
 /* PAGES */
 
-httpd_uri_t settings_post = {.uri = "/settings",
+httpd_uri_t settings_page_post = {.uri = "/settings",
                              .method = HTTP_POST,
                              .handler = settings_post_handler,
                              .user_ctx = NULL};
 
-httpd_uri_t settings_get = {.uri = "/settings",
+httpd_uri_t settings_page_get = {.uri = "/settings",
                             .method = HTTP_GET,
                             .handler = settings_get_handler,
                             .user_ctx = NULL};
 
-httpd_uri_t settings_json_get = {.uri = "/api/settings",
+httpd_uri_t settings_page_json_get = {.uri = "/api/settings",
                                  .method = HTTP_GET,
                                  .handler = settings_json_handler,
                                  .user_ctx = NULL};
