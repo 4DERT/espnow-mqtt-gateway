@@ -7,23 +7,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "settings.h"
+
 static const char *TAG = "httpd_settings";
 
-/* ********************** SETTINGS START ********************** */
-
-settings_t current_settings;
-
-settings_param_t params[] = {
-    {"addr", "MQTT Address", TYPE_STRING, true, false, MAX_SETTINGS_LENGTH,
-     current_settings.mqtt_address_uri},
-    {"user", "MQTT Username", TYPE_STRING, false, false, MAX_SETTINGS_LENGTH,
-     current_settings.mqtt_username},
-    {"pass", "MQTT Password", TYPE_STRING, false, true, MAX_SETTINGS_LENGTH,
-     current_settings.mqtt_password},
-    {"topic", "MQTT Topic", TYPE_STRING, true, false, MAX_SETTINGS_LENGTH,
-     current_settings.mqtt_topic}};
-
-/* ********************** SETTINGS STOP ********************** */
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 // Function to convert a hex character to its integer value
 int hex2int(char ch) {
@@ -100,7 +88,7 @@ esp_err_t settings_post_handler(httpd_req_t *req) {
 
   char temp_buf[MAX_SETTINGS_LENGTH];
 
-  for (int i = 0; i < sizeof(params) / sizeof(params[0]); i++) {
+  for (int i = 0; i < settings_get_params_count(); i++) {
     if (httpd_query_key_value(buf, params[i].name, temp_buf,
                               sizeof(temp_buf)) == ESP_OK) {
       switch (params[i].type) {
@@ -129,7 +117,7 @@ esp_err_t settings_json_handler(httpd_req_t *req) {
   static char json_buffer[MAX_JSON_SIZE];
   size_t len = snprintf(json_buffer, sizeof(json_buffer), "{\"settings\":[");
 
-  for (int i = 0; i < sizeof(params) / sizeof(params[0]); i++) {
+  for (int i = 0; i < settings_get_params_count(); i++) {
     if (i > 0) {
       len += snprintf(json_buffer + len, sizeof(json_buffer) - len, ",");
     }

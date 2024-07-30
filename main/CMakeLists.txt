@@ -9,6 +9,7 @@ idf_component_register(SRCS
                        "flash_filesystem.c"
                        "webserver.c"
                        "settings_page.c"
+                       "settings.c"
                        "old_server_client.c" 
                        INCLUDE_DIRS "."
                        EMBED_FILES
