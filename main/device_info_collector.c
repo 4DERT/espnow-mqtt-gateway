@@ -151,3 +151,24 @@ void dic_get_device_list(dic_device_t **out_array,
     *out_mutex = NULL;
   }
 }
+
+void dic_print_device_list() {
+  if (xSemaphoreTake(device_list_mutex, portMAX_DELAY) == pdTRUE) {
+    printf(
+        "Idx |    MAC Address    | Paired | RSSI |      Time      | Message\n");
+    printf(
+        "----|-------------------|--------|------|----------------|--------\n");
+
+    for (int i = 0; i < DIC_DEVICE_LIST_SIZE; i++) {
+      if (device_list[i]._is_taken) {
+        printf("%-3d | " MACSTR " | %-6d | %-4d | %-14llu | %s\n", i,
+               MAC2STR(device_list[i].mac.x), device_list[i].is_paired,
+               device_list[i].rssi,
+               (unsigned long long)device_list[i].last_msg_time,
+               device_list[i].last_msg);
+      }
+    }
+
+    xSemaphoreGive(device_list_mutex);
+  }
+}

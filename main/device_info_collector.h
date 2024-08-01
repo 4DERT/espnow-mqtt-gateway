@@ -32,4 +32,6 @@ extern void dic_log_device(const espnow_event_receive_cb_t *data);
 extern void dic_get_device_list(dic_device_t **out_array,
                                 SemaphoreHandle_t *out_mutex);
 
+extern void dic_print_device_list();
+
 #endif // DEVICE_INFO_COLLECTOR_H_

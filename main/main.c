@@ -44,7 +44,8 @@ void app_main(void) {
   dic_init();
 
   while (1) {
-    vTaskDelay(pdMS_TO_TICKS(3000));
+    vTaskDelay(pdMS_TO_TICKS(5000));
     ESP_LOGI(TAG, "HEAP: %lu", esp_get_free_heap_size());
+    dic_print_device_list();
   }
 }
