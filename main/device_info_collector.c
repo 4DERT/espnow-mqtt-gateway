@@ -81,11 +81,32 @@ dic_device_t make_dic_device(espnow_event_receive_cb_t *data) {
   return result;
 }
 
-void dic_task(void *params) {
+void init_device_list() {
+  const device_t *paired_devices = gw_get_device_list();
 
+  for (int i = 0; i < gw_get_device_list_idx(); i++) {
+    // init device
+    dic_device_t device = {0};
+    device.is_paired = true;
+    device._is_taken = true;
+    memcpy(&device.mac, &paired_devices[i].mac, ESP_NOW_ETH_ALEN);
+
+    // add to list
+    int idx = find_slot();
+    if (idx == -1) {
+      ESP_LOGW(TAG, "Cannot find free space in device_list!");
+    } else {
+      memcpy(&device_list[idx], &device, sizeof(dic_device_t));
+    }
+  }
+}
+
+void dic_task(void *params) {
   BaseType_t queue_status;
   espnow_event_receive_cb_t data_raw;
   dic_device_t data;
+
+  init_device_list();
 
   while (true) {
     // wait for new data (max 1s)
