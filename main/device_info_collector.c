@@ -1,5 +1,6 @@
 #include "device_info_collector.h"
 
+#include "cJSON.h"
 #include "esp_log.h"
 #include <stdio.h>
 #include <string.h>
@@ -171,4 +172,32 @@ void dic_print_device_list() {
 
     xSemaphoreGive(device_list_mutex);
   }
+}
+
+char *dic_create_device_list_json() {
+  cJSON *root = cJSON_CreateArray();
+
+  for (int i = 0; i < DIC_DEVICE_LIST_SIZE; i++) {
+    if (device_list[i]._is_taken) {
+      cJSON *device = cJSON_CreateObject();
+
+      char mac_str[18];
+      snprintf(mac_str, sizeof(mac_str), MACSTR, MAC2STR(device_list[i].mac.x));
+
+      cJSON_AddStringToObject(device, "mac", mac_str);
+      cJSON_AddBoolToObject(device, "is_paired", device_list[i].is_paired);
+      cJSON_AddNumberToObject(device, "rssi", device_list[i].rssi);
+      cJSON_AddNumberToObject(device, "last_msg_time",
+                              (double)device_list[i].last_msg_time);
+      cJSON_AddStringToObject(device, "user_name", device_list[i].user_name);
+      cJSON_AddStringToObject(device, "last_msg", device_list[i].last_msg);
+
+      cJSON_AddItemToArray(root, device);
+    }
+  }
+
+  char *json_str = cJSON_PrintUnformatted(root);
+  cJSON_Delete(root); 
+
+  return json_str;
 }

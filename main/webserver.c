@@ -10,6 +10,7 @@
 #include "esp_random.h"
 
 #include "settings_page.h"
+#include "device_info_collector.h"
 
 static const char *TAG = "webserver";
 
@@ -66,6 +67,31 @@ static httpd_uri_t styles_uri= {.uri = "/styles.css",
                                  .handler = styles_get_handler,
                                  .user_ctx = NULL};
 
+
+/* Handler to respond with the contents of index.html */
+esp_err_t device_list_get_handler(httpd_req_t *req) {
+  ESP_LOGI(TAG, "device_list_get_handler");
+
+  char *json_str = dic_create_device_list_json();
+  if (json_str) {
+      printf("%s\n", json_str);
+      
+      httpd_resp_set_type(req, "application/json");
+      httpd_resp_send(req, json_str, strlen(json_str));
+      free(json_str);
+
+      return ESP_OK;
+  }
+
+
+  return ESP_ERR_HTTPD_ALLOC_MEM;
+}
+
+static httpd_uri_t device_list_uri= {.uri = "/api/devices",
+                                 .method = HTTP_GET,
+                                 .handler = device_list_get_handler,
+                                 .user_ctx = NULL};
+
 httpd_handle_t webserver_start(void) {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   httpd_handle_t server = NULL;
@@ -77,6 +103,7 @@ httpd_handle_t webserver_start(void) {
     httpd_register_uri_handler(server, &settings_page_get);
     httpd_register_uri_handler(server, &settings_page_post);
     httpd_register_uri_handler(server, &settings_page_json_get);
+    httpd_register_uri_handler(server, &device_list_uri);
     ESP_LOGI(TAG, "ESP32 Web Server started");
   } else {
     ESP_LOGE(TAG, "ESP32 Web Server not started - ERROR");
