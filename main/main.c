@@ -12,6 +12,7 @@
 #include "gateway_device_list.h"
 #include "webserver.h"
 #include "settings.h"
+#include "device_info_collector.h"
 
 static const char *TAG = "main";
 
@@ -40,8 +41,10 @@ void app_main(void) {
   mqtt_init();
 
   webserver_start();
+  dic_init();
 
   while (1) {
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    vTaskDelay(pdMS_TO_TICKS(3000));
+    ESP_LOGI(TAG, "HEAP: %lu", esp_get_free_heap_size());
   }
 }

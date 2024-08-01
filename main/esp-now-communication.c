@@ -11,6 +11,7 @@
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "old_server_client.h"
+#include "device_info_collector.h"
 
 static const char *TAG = "esp now com";
 
@@ -210,6 +211,8 @@ void esp_now_receive_task(void *params) {
     // ESP_LOGI(TAG, "Recieved message!");
     ESP_LOGI(TAG, "Recieved message \"%s\" from " MACSTR " RSSI: %d dBm", data.data, MAC2STR(data.esp_now_info.src_addr), data.esp_now_info.rx_ctrl->rssi);
     // print_recv_info(&data.esp_now_info);
+
+    dic_log_device(&data);
 
     if (IS_BROADCAST_ADDR(data.esp_now_info.des_addr)) {
       ESP_LOGI(TAG, "Receive broadcast ESPNOW data");

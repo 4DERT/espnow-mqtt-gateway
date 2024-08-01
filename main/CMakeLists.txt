@@ -10,6 +10,7 @@ idf_component_register(SRCS
                        "webserver.c"
                        "settings_page.c"
                        "settings.c"
+                       "device_info_collector.c"
                        "old_server_client.c" 
                        INCLUDE_DIRS "."
                        EMBED_FILES
