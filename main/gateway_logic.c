@@ -70,6 +70,13 @@ void gw_espnow_data_parse(espnow_event_receive_cb_t* data) {
   free(topic);
 }
 
+void gw_espnow_parse_no_type(espnow_event_receive_cb_t* data) {
+  char* topic = NULL;
+  asprintf(&topic, GW_TOPIC_PREFIX GW_MACSTR, MAC2STR(data->esp_now_info.src_addr));
+  mqtt_publish(topic, data->data, 0, 0, 0);
+  free(topic);
+}
+
 void gw_espnow_message_parser(espnow_event_receive_cb_t* data) {
   ESP_LOGD(TAG, "gw_espnow_message_parser");
 
@@ -103,6 +110,7 @@ void gw_espnow_message_parser(espnow_event_receive_cb_t* data) {
       break;
 
     default:
+      gw_espnow_parse_no_type(data);
       break;
   }
 }
