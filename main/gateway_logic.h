@@ -9,14 +9,18 @@
 
 #define GW_PAIR_HEADER      "SHPR"
 #define GW_ACCEPT_PAIR      "SHPR:PAIRED"
+#define GW_TOPIC_SPEC       "!?:"
+#define GW_TOPIC_SPEC_STATUS "!S:"
+#define GW_TOPIC_SPEC_DATA  "!D:"
 #define GW_STATUS_CHAR      'S'
 #define GW_DATA_CHAR        'D'
 #define GW_TOPIC_PREFIX     "device/"
 #define GW_TOPIC_CMD        GW_TOPIC_PREFIX GW_MACSTR "/cmd"
 #define GW_TOPIC_STATUS     GW_TOPIC_PREFIX GW_MACSTR "/status"
+#define GW_TOPIC_AVAILABILITY     GW_TOPIC_PREFIX GW_MACSTR "/availability"
 #define GW_TOPIC_DATA       GW_TOPIC_PREFIX GW_MACSTR "/data"
-#define GW_STATUS_ONLINE    "online"
-#define GW_STATUS_OFFLINE   "offline"
+#define GW_AVAILABILITY_ONLINE    "online"
+#define GW_AVAILABILITY_OFFLINE   "offline"
 
 typedef struct mac_t { uint8_t x[ESP_NOW_ETH_ALEN]; } mac_t;
 

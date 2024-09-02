@@ -46,27 +46,32 @@ void gw_espnow_broadcast_parser(espnow_event_receive_cb_t* data) {
 }
 
 void gw_espnow_status_parse(espnow_event_receive_cb_t* data) {
-  char status[4];
-  int num = -1;
+  char msg[ESP_NOW_MAX_DATA_LEN];
 
   // Check message fomrat
-  if (sscanf(data->data, "S:%d,%3s", &num, status) != 2) {
+  if (sscanf(data->data, GW_TOPIC_SPEC_STATUS "%s", msg) != 1) {
     ESP_LOGW(TAG, "Invalid message format");
     return;
   }
 
   char* topic = NULL;
-  asprintf(&topic, GW_TOPIC_STATUS "/%d", MAC2STR(data->esp_now_info.src_addr), num);
-  mqtt_publish(topic, status, 0, 0, 0);
+  asprintf(&topic, GW_TOPIC_STATUS, MAC2STR(data->esp_now_info.src_addr));
+  mqtt_publish(topic, msg, 0, 0, 0);
   free(topic);
 }
 
 void gw_espnow_data_parse(espnow_event_receive_cb_t* data) {
-  // D:{JSON}
+  char msg[ESP_NOW_MAX_DATA_LEN];
+
+  // Check message fomrat
+  if (sscanf(data->data, GW_TOPIC_SPEC_DATA "%s", msg) != 1) {
+    ESP_LOGW(TAG, "Invalid message format");
+    return;
+  }
 
   char* topic = NULL;
   asprintf(&topic, GW_TOPIC_DATA, MAC2STR(data->esp_now_info.src_addr));
-  mqtt_publish(topic, data->data+2, 0, 0, 0);
+  mqtt_publish(topic, msg, 0, 0, 0);
   free(topic);
 }
 
@@ -98,9 +103,10 @@ void gw_espnow_message_parser(espnow_event_receive_cb_t* data) {
   }
 #endif
 
-  char msg_type = data->data[0];
-
-  switch (msg_type) {
+  // check if device is specifying a topic using !D: or !S:
+  if(data->data[0] == GW_TOPIC_SPEC[0] && data->data[2] == GW_TOPIC_SPEC[2]) {
+    char msg_type = data->data[1];
+    switch (msg_type) {
     case GW_STATUS_CHAR:
       gw_espnow_status_parse(data);
       break;
@@ -112,7 +118,12 @@ void gw_espnow_message_parser(espnow_event_receive_cb_t* data) {
     default:
       gw_espnow_parse_no_type(data);
       break;
+    }
+    
+  } else {
+    gw_espnow_parse_no_type(data);
   }
+
 }
 
 bool get_mac_from_topic(const char* topic, uint8_t* ret_mac) {
@@ -208,8 +219,8 @@ void gw_subscribe_devices() {
     device_t* device = gw_find_device_by_mac(device_list[i].mac);
     device->is_online = true;
     char* topic = NULL;
-    asprintf(&topic, GW_TOPIC_STATUS, MAC2STR(device_list[i].mac));
-    mqtt_publish(topic, "online", 0, 0, 0);
+    asprintf(&topic, GW_TOPIC_AVAILABILITY, MAC2STR(device_list[i].mac));
+    mqtt_publish(topic, GW_AVAILABILITY_ONLINE, 0, 0, 1);
     free(topic);
   }
 
