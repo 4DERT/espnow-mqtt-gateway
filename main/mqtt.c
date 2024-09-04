@@ -17,7 +17,10 @@ static SemaphoreHandle_t init_semaphore;
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data);
 static void log_error_if_nonzero(const char *message, int error_code);
 
+#define LAST_WILL_TOPIC_LEN (MAX_SETTINGS_LENGTH + sizeof(GW_GATEWAY_AVAILABILITY))
+
 char topic_prefix[MAX_SETTINGS_LENGTH];
+char last_will_topic[LAST_WILL_TOPIC_LEN];
 
 void mqtt_init() {
   init_semaphore = xSemaphoreCreateBinary();
@@ -27,6 +30,8 @@ void mqtt_init() {
   if (topic_prefix[strlen(topic_prefix) - 1] != '/') {
     strcat(topic_prefix, "/");
   }
+
+  snprintf(last_will_topic, LAST_WILL_TOPIC_LEN, "%s%s", topic_prefix, GW_GATEWAY_AVAILABILITY);
 
   if (!strlen(settings.mqtt_address_uri)) {
     ESP_LOGW(TAG, "Broker address is not provided");
@@ -43,9 +48,9 @@ void mqtt_init() {
       .outbox.limit = MQTT_OUTBOX_LIMIT,
       .credentials.username = settings.mqtt_username,
       .credentials.authentication.password = settings.mqtt_password,
-      .session.last_will.topic = "/gw/status/",
-      .session.last_will.msg = "offline",
-      .session.last_will.msg_len = strlen("offline")};
+      .session.last_will.topic = last_will_topic,
+      .session.last_will.msg = GW_AVAILABILITY_OFFLINE,
+      .session.last_will.msg_len = strlen(GW_AVAILABILITY_OFFLINE)};
 
   client = esp_mqtt_client_init(&mqtt_cfg);
   esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
@@ -79,6 +84,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     case MQTT_EVENT_CONNECTED:
       ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
       is_connected = true;
+      mqtt_publish(GW_GATEWAY_AVAILABILITY, GW_AVAILABILITY_ONLINE, 0, 0, 1);
       gw_subscribe_devices();
       break;
 

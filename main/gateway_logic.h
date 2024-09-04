@@ -21,6 +21,7 @@
 #define GW_TOPIC_DATA       GW_TOPIC_PREFIX GW_MACSTR "/data"
 #define GW_AVAILABILITY_ONLINE    "online"
 #define GW_AVAILABILITY_OFFLINE   "offline"
+#define GW_GATEWAY_AVAILABILITY   "availability"
 
 typedef struct mac_t { uint8_t x[ESP_NOW_ETH_ALEN]; } mac_t;
 
