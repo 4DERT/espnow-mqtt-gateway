@@ -17,11 +17,22 @@ static SemaphoreHandle_t init_semaphore;
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data);
 static void log_error_if_nonzero(const char *message, int error_code);
 
+char topic_prefix[MAX_SETTINGS_LENGTH];
+
 void mqtt_init() {
   init_semaphore = xSemaphoreCreateBinary();
 
   settings_t settings = settings_get();
+  strcpy(topic_prefix, settings.mqtt_topic);
+  if (topic_prefix[strlen(topic_prefix) - 1] != '/') {
+    strcat(topic_prefix, "/");
+  }
 
+  if (!strlen(settings.mqtt_address_uri)) {
+    ESP_LOGW(TAG, "Broker address is not provided");
+    return;
+  }
+  
   if(!strlen(settings.mqtt_address_uri)) {
     ESP_LOGW(TAG, "Broker address is not provided");
     return;
@@ -42,6 +53,10 @@ void mqtt_init() {
 
   xSemaphoreTake(init_semaphore, MQTT_WAIT_FOR_CONNECTION_MS / portTICK_PERIOD_MS);
   esp_mqtt_client_start(client);
+}
+
+const char* mqtt_get_topic_prefix() {
+  return topic_prefix;
 }
 
 void mqtt_connected_notify() {
@@ -127,12 +142,26 @@ void mqtt_subscribe(char *topic, int qos) {
     ESP_LOGW(TAG, "No connection, topic will be subscribed after connection to the Internet");
   }
 
-  ESP_LOGI(TAG, "subscribing on %s", topic);
+  // Add prefix to topic
+  size_t topic_len = strlen(topic_prefix) + strlen(topic) + 1; // +1 for null-terminator
+  char *full_topic = (char *)malloc(topic_len);
 
-  int res = esp_mqtt_client_subscribe(client, topic, qos);
-  if (res == -1 || res == -2) {
-    ESP_LOGE(TAG, "Error (%d) while subscribing %s", res, topic);
+  if (full_topic == NULL) {
+    ESP_LOGE(TAG, "Memory allocation failed for full_topic");
+    return;
   }
+
+  strcpy(full_topic, topic_prefix);
+  strcat(full_topic, topic);
+
+  ESP_LOGI(TAG, "subscribing on %s", full_topic);
+
+  int res = esp_mqtt_client_subscribe(client, full_topic, qos);
+  if (res == -1 || res == -2) {
+    ESP_LOGE(TAG, "Error (%d) while subscribing %s", res, full_topic);
+  }
+
+  free(full_topic);
 }
 
 void mqtt_publish(const char *topic, const char *data, int len, int qos, int retain) {
@@ -145,15 +174,29 @@ void mqtt_publish(const char *topic, const char *data, int len, int qos, int ret
     ESP_LOGW(TAG, "No connection, message will be delivered after connection to the Internet");
   }
 
-  ESP_LOGI(TAG, "publishing on %s %s", topic, data);
+  // Add prefix to topic
+  size_t topic_len = strlen(topic_prefix) + strlen(topic) + 1; // +1 for null-terminator
+  char *full_topic = (char *)malloc(topic_len);
 
-  int res = esp_mqtt_client_publish(client, topic, data, len, qos, retain);
-  if (res == -1 || res == -2) {
-    ESP_LOGE(TAG, "Error (%d) while publishing %s%s", res, topic, data);
+  if (full_topic == NULL) {
+    ESP_LOGE(TAG, "Memory allocation failed for full_topic");
+    return;
   }
+
+  strcpy(full_topic, topic_prefix);
+  strcat(full_topic, topic);
+
+  ESP_LOGI(TAG, "publishing on %s %s", full_topic, data);
+
+  int res = esp_mqtt_client_publish(client, full_topic, data, len, qos, retain);
+  if (res == -1 || res == -2) {
+    ESP_LOGE(TAG, "Error (%d) while publishing %s%s", res, full_topic, data);
+  }
+
+  free(full_topic);
 }
 
-void mqtt_subscribe_multiple(const esp_mqtt_topic_t *topic_list, int size) {
+void mqtt_subscribe_multiple_no_prefix(const esp_mqtt_topic_t *topic_list, int size) {
   if(!is_initialised) {
     ESP_LOGW(TAG, "MQTT is not initialized, multiple subscription is rejected");
     return;

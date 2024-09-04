@@ -127,7 +127,7 @@ void gw_espnow_message_parser(espnow_event_receive_cb_t* data) {
 }
 
 bool get_mac_from_topic(const char* topic, uint8_t* ret_mac) {
-  const char* topic_ptr = topic + strlen(GW_TOPIC_PREFIX);
+  const char* topic_ptr = topic + strlen(mqtt_get_topic_prefix()) + strlen(GW_TOPIC_PREFIX);
 
   for (int i = 0; i < 6; i++) {
     if (sscanf(topic_ptr, "%2hhx", &ret_mac[i]) != 1) {
@@ -199,20 +199,21 @@ void gw_subscribe_devices() {
 
   const device_t* device_list = gw_get_device_list();
 
+  const char* topic_prefix = mqtt_get_topic_prefix();
   for (int i = 0; i < num_of_devices; i++) {
-    int needed_size = snprintf(NULL, 0, GW_TOPIC_CMD, MAC2STR(device_list[i].mac)) + 1;  // +1 for null terminator
+    int needed_size = snprintf(NULL, 0, "%s" GW_TOPIC_CMD, topic_prefix, MAC2STR(device_list[i].mac)) + 1;  // +1 for null terminator
     char* dynamic_topic = malloc(needed_size);
     if (dynamic_topic == NULL) {
       ESP_LOGE(TAG, "Failed to allocate memory for topic string\n");
       continue;
     }
-    snprintf(dynamic_topic, needed_size, GW_TOPIC_CMD, MAC2STR(device_list[i].mac));
+    snprintf(dynamic_topic, needed_size, "%s" GW_TOPIC_CMD, topic_prefix, MAC2STR(device_list[i].mac));
     topic_list[i].filter = dynamic_topic;  // Assign dynamically allocated topic
     topic_list[i].qos = 0;
   }
 
   // subscribe topics
-  mqtt_subscribe_multiple(topic_list, num_of_devices);
+  mqtt_subscribe_multiple_no_prefix(topic_list, num_of_devices);
 
   // send "online"
   for (int i = 0; i < num_of_devices; i++) {
