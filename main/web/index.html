@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP-NOW to MQTT Gateway</title>
     <link rel="stylesheet" href="/styles.css">
 </head>
+
 <body>
     <nav>
         <div class="nav-wrapper">
@@ -17,8 +19,127 @@
         </div>
     </nav>
     <main>
-        <!-- Main content will go here -->
+        <div id="device-table-container"></div>
     </main>
-    <!-- <script src="scripts.js"></script> -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const container = document.getElementById('device-table-container');
+
+            // Function to calculate time ago
+            function timeAgo(timestamp) {
+                const now = Math.floor(Date.now() / 1000);  // current time in seconds
+                const secondsAgo = now - timestamp;
+
+                if (secondsAgo < 60) {
+                    return `${secondsAgo} s ago`;
+                } else if (secondsAgo < 3600) {
+                    const minutes = Math.floor(secondsAgo / 60);
+                    return `${minutes} min ago`;
+                } else if (secondsAgo < 86400) {
+                    const hours = Math.floor(secondsAgo / 3600);
+                    return `${hours} h ago`;
+                } else {
+                    const days = Math.floor(secondsAgo / 86400);
+                    return `${days} d ago`;
+                }
+            }
+
+            // Function to create table
+            function createTable(devices) {
+                // Clear the previous table
+                container.innerHTML = '';
+
+                const table = document.createElement('table');
+                table.setAttribute('border', '1');
+                table.style.width = '100%';
+                table.style.borderCollapse = 'collapse';
+
+                // Add table header
+                const headers = ['MAC Address', 'Paired', 'RSSI', 'Last Message Time', 'Last Message'];
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+
+                headers.forEach(headerText => {
+                    const th = document.createElement('th');
+                    th.textContent = headerText;
+                    th.style.padding = '8px';
+                    th.style.backgroundColor = '#333';
+                    th.style.color = 'white';
+                    headerRow.appendChild(th);
+                });
+
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+
+                // Add table body
+                const tbody = document.createElement('tbody');
+
+                devices.forEach(device => {
+                    const row = document.createElement('tr');
+
+                    // Insert MAC Address
+                    let td = document.createElement('td');
+                    td.textContent = device.mac;
+                    td.style.padding = '8px';
+                    td.style.fontFamily = 'Monospace';
+                    row.appendChild(td);
+
+                    // Insert Paired Status
+                    td = document.createElement('td');
+                    td.textContent = device.is_paired ? 'Yes' : 'No';
+                    td.style.padding = '8px';
+                    td.style.textAlign = 'center';
+                    row.appendChild(td);
+
+                    // Insert RSSI
+                    td = document.createElement('td');
+                    td.textContent = device.rssi != 0 ? device.rssi : '-';
+                    td.style.padding = '8px';
+                    td.style.textAlign = 'center';
+                    row.appendChild(td);
+
+                    // Insert Last Message Time (in "time ago" format)
+                    td = document.createElement('td');
+                    if (device.last_msg_time) {
+                        td.textContent = timeAgo(device.last_msg_time);
+                    } else {
+                        td.textContent = '-';
+                    }
+                    td.style.padding = '8px';
+                    td.style.textAlign = 'center';
+                    row.appendChild(td);
+
+                    // Insert Last Message
+                    td = document.createElement('td');
+                    td.textContent = device.last_msg ? device.last_msg : '-';
+                    td.style.padding = '8px';
+                    row.appendChild(td);
+
+                    tbody.appendChild(row);
+                });
+
+                table.appendChild(tbody);
+                container.appendChild(table);
+            }
+
+            // Function to fetch devices data from API
+            function fetchDevices() {
+                fetch('/api/devices')
+                    .then(response => response.json())
+                    .then(data => {
+                        createTable(data);
+                    })
+                    .catch(error => console.error('Error fetching devices:', error));
+            }
+
+            // Fetch data on page load
+            fetchDevices();
+
+            // Set up interval to fetch data every 10 seconds
+            setInterval(fetchDevices, 10000); // 10,000 milliseconds = 10 seconds
+        });
+
+    </script>
 </body>
+
 </html>
