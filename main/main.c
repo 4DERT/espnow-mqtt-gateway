@@ -34,11 +34,11 @@ void app_main(void) {
   gw_load_device_list_from_flash();
   init_network_status(on_network_connected, on_network_disconnected);
   ethernet_module_init(ethernet_even_handler, ethernet_got_ip_handler);
+  dic_init();
   esp_now_communication_init();
   mqtt_init();
 
   webserver_start();
-  dic_init();
 
   while (1) {
     vTaskDelay(pdMS_TO_TICKS(5000));

@@ -18,6 +18,7 @@
 static const char* TAG = "gateway";
 
 static void gw_send_to(const device_t* device, const char* msg, QueueHandle_t* ack_queue);
+static bool gw_get_pair_msg_from_last_msg(const uint8_t mac[], char* out);
 
 void gw_publish_pending_pairing_devices() {
   dic_device_t *device_list;
@@ -97,13 +98,29 @@ void gw_publish_pending_pairing_devices() {
 void gw_on_pair_request(device_t* device) {
   ESP_LOGI(TAG, "Pair request from: " MACSTR, MAC2STR(device->mac));
 
-  if (gw_find_device_by_mac(device->mac) != NULL) {
+  device_t* device_on_paired_list = gw_find_device_by_mac(device->mac);
+  if (device_on_paired_list != NULL) {
     ESP_LOGW(TAG, "Device already paired");
+
+    // update pair message
+    char* new_pair_msg = malloc(ESP_NOW_MAX_DATA_LEN);
+    if(new_pair_msg == NULL) {
+      ESP_LOGE(TAG, "Memory allocation for new_pair_msg failed");
+      return;
+    }
+
+    if(gw_get_pair_msg_from_last_msg(device->mac, new_pair_msg)) {
+      gw_update_pair_message(device->mac, new_pair_msg);
+    }
+    free(new_pair_msg);
+
+    // send accept pair message
     gw_send_to(device, GW_ACCEPT_PAIR, NULL);
     return;
   }
 
   gw_publish_pending_pairing_devices();
+  gw_publish_paired_devices();
 }
 
 void gw_espnow_broadcast_parser(espnow_event_receive_cb_t* data) {
@@ -233,7 +250,7 @@ bool gw_is_pair_accept_topic(const char* topic) {
   return true;
 }
 
-bool gw_get_pair_msg_from_last_msg(mac_t* mac, char* out) {
+bool gw_get_pair_msg_from_last_msg(const uint8_t mac[], char* out) {
   dic_device_t *device_list;
   SemaphoreHandle_t device_list_mutex;
   dic_get_device_list(&device_list, &device_list_mutex);
@@ -247,9 +264,8 @@ bool gw_get_pair_msg_from_last_msg(mac_t* mac, char* out) {
           dic_device_t* device = &device_list[i];
 
           if (device->_is_taken && 
-              !device->is_paired && 
               (strncmp(device->last_msg, GW_PAIR_HEADER, strlen(GW_PAIR_HEADER)) == 0) &&
-              memcmp(device->mac.x, mac->x, ESP_NOW_ETH_ALEN) == 0) {
+              memcmp(device->mac.x, mac, ESP_NOW_ETH_ALEN) == 0) {
 
                 snprintf(out, ESP_NOW_MAX_DATA_LEN, "%s", device->last_msg);
 
@@ -282,7 +298,7 @@ void gw_pair(mac_t* mac) {
   memcpy(device.mac, mac->x, ESP_NOW_ETH_ALEN);
   device.is_online = true;
 
-  if(gw_get_pair_msg_from_last_msg(mac, device.pair_msg)) {
+  if(gw_get_pair_msg_from_last_msg(mac->x, device.pair_msg)) {
     gw_add_device(&device);
 
     mqtt_subscribe(topic, 2);

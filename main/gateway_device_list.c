@@ -53,6 +53,18 @@ bool gw_add_device(device_t* device) {
   return true;
 }
 
+void gw_update_pair_message(const uint8_t mac[], const char* new_pair_msg) {
+  device_t* device = gw_find_device_by_mac(mac);
+
+  if(device != NULL) {
+    strncpy(device->pair_msg, new_pair_msg, ESP_NOW_MAX_DATA_LEN);
+    gw_save_device_list_to_flash();
+  } else {
+    ESP_LOGE(TAG, "Error while updating pair message");
+  }
+
+}
+
 void gw_save_device_list_to_flash() {
   FILE* file = fopen("/storage/device_list.bin", "wb");  // Otwarcie pliku do zapisu w trybie binarnym
   if (file == NULL) {
