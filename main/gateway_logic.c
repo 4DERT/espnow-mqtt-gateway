@@ -20,80 +20,93 @@ static const char* TAG = "gateway";
 static void gw_send_to(const device_t* device, const char* msg, QueueHandle_t* ack_queue);
 static bool gw_get_pair_msg_from_last_msg(const uint8_t mac[], char* out);
 
-void gw_publish_pending_pairing_devices() {
-  dic_device_t *device_list;
-  SemaphoreHandle_t device_list_mutex;
+void extract_type_and_cfg_from_pair_msg(const char *msg, cJSON *json) {
+    const char *prefix = GW_PAIR_HEADER;  // zakładamy, że to jest "SHPR:"
+    size_t prefix_len = strlen(prefix);
 
-  dic_get_device_list(&device_list, &device_list_mutex);
+    if (strncmp(msg, prefix, prefix_len) == 0) {
+        // remove prefix
+        const char *json_str = msg + prefix_len;
 
-  if (device_list != NULL && device_list_mutex != NULL) {
+        cJSON *pairing_json = cJSON_Parse(json_str);
+        if (pairing_json != NULL) {
+            // Extract the "type" field from the JSON
+            cJSON *type = cJSON_GetObjectItem(pairing_json, "type");
+            if (type != NULL && cJSON_IsNumber(type)) {
+                cJSON_AddNumberToObject(json, "type", type->valueint);
+            }
 
-    cJSON *root = cJSON_CreateArray();
+            // Extract the "cfg" field from the JSON
+            cJSON *cfg = cJSON_GetObjectItem(pairing_json, "cfg");
+            if (cfg != NULL) {
+                cJSON_AddItemToObject(json, "cfg", cJSON_Duplicate(cfg, 1));
+            }
 
-    // Lock mutex for secure access to device list
-    if (xSemaphoreTake(device_list_mutex, portMAX_DELAY) == pdTRUE) {
-      
-      for (int i = 0; i < DIC_DEVICE_LIST_SIZE; i++) {
-          dic_device_t* device = &device_list[i];
-
-          if (device->_is_taken && 
-              !device->is_paired && 
-              (strncmp(device->last_msg, GW_PAIR_HEADER, strlen(GW_PAIR_HEADER)) == 0) && 
-              ((time(NULL) - device->last_msg_time) < GW_PAIR_MAX_TIME_S)) {
-
-              // Create a JSON object for the device
-              cJSON *cj_device = cJSON_CreateObject();
-
-              char mac_str[18];
-              snprintf(mac_str, sizeof(mac_str), MACSTR, MAC2STR(device->mac.x));
-
-              cJSON_AddStringToObject(cj_device, "mac", mac_str);
-
-              // Remove the "SHPR:" prefix and parse the remaining part as JSON
-              char *json_str = device->last_msg + strlen(GW_PAIR_HEADER);
-
-              cJSON *pairing_json = cJSON_Parse(json_str);
-              if (pairing_json != NULL) {
-                  // Extract the "type" field from the JSON
-                  cJSON *type = cJSON_GetObjectItem(pairing_json, "type");
-                  if (type != NULL && cJSON_IsNumber(type)) {
-                      cJSON_AddNumberToObject(cj_device, "type", type->valueint);
-                  }
-
-                  // Extract the "cfg" field from the JSON
-                  cJSON *cfg = cJSON_GetObjectItem(pairing_json, "cfg");
-                  if (cfg != NULL) {
-                      cJSON_AddItemToObject(cj_device, "cfg", cJSON_Duplicate(cfg, 1));
-                  }
-
-                  // Free the parsed JSON memory
-                  cJSON_Delete(pairing_json);
-              } else {
-                  ESP_LOGE(TAG, "Failed to parse pairing message for device: %s", mac_str);
-              }
-
-              // Add the device to the JSON array
-              cJSON_AddItemToArray(root, cj_device);
-          }
-      }
-
-      // free mutex
-      xSemaphoreGive(device_list_mutex);
-
-      char *json_str = cJSON_PrintUnformatted(root);
-      cJSON_Delete(root); 
-
-      mqtt_publish(GW_GATEWAY_PENDING_PAIRING_TOPIC, json_str, 0, 0, 1);
-
-      free(json_str);
-
+            // Free the parsed JSON memory
+            cJSON_Delete(pairing_json);
+        } else {
+            ESP_LOGE(TAG, "Failed to parse pairing message: %s", json_str);
+        }
     } else {
-      ESP_LOGE(TAG, "Failed to take device list mutex");
+        ESP_LOGE(TAG, "Message does not start with the expected prefix: %s", msg);
     }
-  } else {
-    ESP_LOGE(TAG, "Failed to get device list or mutex");
-  }
 }
+
+
+void gw_publish_pending_pairing_devices() {
+    dic_device_t *device_list;
+    SemaphoreHandle_t device_list_mutex;
+
+    dic_get_device_list(&device_list, &device_list_mutex);
+
+    if (device_list != NULL && device_list_mutex != NULL) {
+
+        cJSON *root = cJSON_CreateArray();
+
+        // Lock mutex for secure access to device list
+        if (xSemaphoreTake(device_list_mutex, portMAX_DELAY) == pdTRUE) {
+            
+            for (int i = 0; i < DIC_DEVICE_LIST_SIZE; i++) {
+                dic_device_t* device = &device_list[i];
+
+                if (device->_is_taken && 
+                    !device->is_paired && 
+                    (strncmp(device->last_msg, GW_PAIR_HEADER, strlen(GW_PAIR_HEADER)) == 0) && 
+                    ((time(NULL) - device->last_msg_time) < GW_PAIR_MAX_TIME_S)) {
+
+                    // Create a JSON object for the device
+                    cJSON *cj_device = cJSON_CreateObject();
+
+                    char mac_str[18];
+                    snprintf(mac_str, sizeof(mac_str), MACSTR, MAC2STR(device->mac.x));
+
+                    cJSON_AddStringToObject(cj_device, "mac", mac_str);
+
+                    extract_type_and_cfg_from_pair_msg(device->last_msg, cj_device);
+
+                    // Add the device to the JSON array
+                    cJSON_AddItemToArray(root, cj_device);
+                }
+            }
+
+            // Free mutex
+            xSemaphoreGive(device_list_mutex);
+
+            char *json_str = cJSON_PrintUnformatted(root);
+            cJSON_Delete(root); 
+
+            mqtt_publish(GW_GATEWAY_PENDING_PAIRING_TOPIC, json_str, 0, 0, 1);
+
+            free(json_str);
+
+        } else {
+            ESP_LOGE(TAG, "Failed to take device list mutex");
+        }
+    } else {
+        ESP_LOGE(TAG, "Failed to get device list or mutex");
+    }
+}
+
 
 void gw_on_pair_request(device_t* device) {
   ESP_LOGI(TAG, "Pair request from: " MACSTR, MAC2STR(device->mac));
@@ -431,7 +444,7 @@ void gw_publish_paired_devices() {
       snprintf(mac_str, sizeof(mac_str), MACSTR, MAC2STR(devices[i].mac));
 
       cJSON_AddStringToObject(device, "mac", mac_str);
-      cJSON_AddStringToObject(device, "pair_msg", devices[i].pair_msg);
+      extract_type_and_cfg_from_pair_msg(devices[i].pair_msg, device);
 
       cJSON_AddItemToArray(root, device);
   }
