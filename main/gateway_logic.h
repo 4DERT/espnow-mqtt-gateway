@@ -22,6 +22,7 @@
 #define GW_AVAILABILITY_ONLINE    "online"
 #define GW_AVAILABILITY_OFFLINE   "offline"
 #define GW_GATEWAY_AVAILABILITY   "availability"
+#define GW_GATEWAY_DEVICE_LIST_TOPIC "paired"
 
 typedef struct mac_t { uint8_t x[ESP_NOW_ETH_ALEN]; } mac_t;
 
@@ -35,5 +36,6 @@ void gw_espnow_broadcast_parser(espnow_event_receive_cb_t* packet);
 void gw_mqtt_parser(const char* topic, int topic_len, const char* data, int data_len);
 void gw_espnow_message_parser(espnow_event_receive_cb_t* data);
 void gw_subscribe_devices();
+void gw_publish_paired_devices();
 
 #endif //GATEWAY_LOGIC_H_

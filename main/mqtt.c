@@ -86,6 +86,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
       is_connected = true;
       mqtt_publish(GW_GATEWAY_AVAILABILITY, GW_AVAILABILITY_ONLINE, 0, 0, 1);
       gw_subscribe_devices();
+      gw_publish_paired_devices();
       break;
 
     case MQTT_EVENT_DISCONNECTED:

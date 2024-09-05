@@ -8,6 +8,7 @@
 #include "gateway_device_list.h"
 #include "mqtt.h"
 #include "string.h"
+#include "cJSON.h"
 
 // If it is 0, the gateway does not reject messages from unpaired devices. 
 // Use with caution, preferably only in a development environment.
@@ -30,6 +31,8 @@ void gw_on_pair_request(device_t* device) {
   // temporarly all pair request will be accepted
   // send "accept pair" message
   gw_send_to(device, GW_ACCEPT_PAIR, NULL);
+
+  gw_publish_paired_devices();
 }
 
 void gw_espnow_broadcast_parser(espnow_event_receive_cb_t* data) {
@@ -231,4 +234,28 @@ void gw_subscribe_devices() {
     free((void*)topic_list[i].filter);  // Free each dynamically allocated topic
   }
   free(topic_list);
+}
+
+void gw_publish_paired_devices() {
+  const device_t* devices = gw_get_device_list();
+
+  cJSON *root = cJSON_CreateArray();
+  for (int i = 0; i < gw_get_device_list_idx(); i++) {
+      cJSON *device = cJSON_CreateObject();
+
+      char mac_str[18];
+      snprintf(mac_str, sizeof(mac_str), MACSTR, MAC2STR(devices[i].mac));
+
+      cJSON_AddStringToObject(device, "mac", mac_str);
+      cJSON_AddStringToObject(device, "pair_msg", devices[i].pair_msg);
+
+      cJSON_AddItemToArray(root, device);
+  }
+
+  char *json_str = cJSON_PrintUnformatted(root);
+  cJSON_Delete(root); 
+
+  mqtt_publish(GW_GATEWAY_DEVICE_LIST_TOPIC, json_str, 0, 0, 1);
+
+  free(json_str);
 }
