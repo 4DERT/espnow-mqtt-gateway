@@ -6,7 +6,6 @@
 #include "network_status.h"
 #include "esp_time.h"
 #include "esp-now-communication.h"
-#include "old_server_client.h"
 #include "mqtt.h"
 #include "flash_filesystem.h"
 #include "gateway_device_list.h"
@@ -20,7 +19,6 @@ void on_network_connected() {
   ESP_LOGI(TAG, "Network connected! - launching network-related tasks...");
 
   esp_time_sntp_init(NULL, NULL);
-  start_old_server_client();
   mqtt_connected_notify();
 }
 
@@ -28,7 +26,6 @@ void on_network_disconnected() {
   ESP_LOGI(TAG, "Network disconnected! - deleting network-related tasks...");
 
   esp_time_sntp_deinit();
-  stop_old_server_client();
 }
 
 void app_main(void) {
@@ -45,7 +42,5 @@ void app_main(void) {
 
   while (1) {
     vTaskDelay(pdMS_TO_TICKS(5000));
-    ESP_LOGI(TAG, "HEAP: %lu", esp_get_free_heap_size());
-    dic_print_device_list();
   }
 }

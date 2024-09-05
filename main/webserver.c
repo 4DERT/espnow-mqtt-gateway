@@ -74,7 +74,7 @@ esp_err_t device_list_get_handler(httpd_req_t *req) {
 
   char *json_str = dic_create_device_list_json();
   if (json_str) {
-      printf("%s\n", json_str);
+      ESP_LOGD(TAG, "%s\n", json_str);
       
       httpd_resp_set_type(req, "application/json");
       httpd_resp_send(req, json_str, strlen(json_str));

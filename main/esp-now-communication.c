@@ -10,7 +10,6 @@
 #include "gateway_logic.h"
 #include "nvs.h"
 #include "nvs_flash.h"
-#include "old_server_client.h"
 #include "device_info_collector.h"
 
 static const char *TAG = "esp now com";
@@ -31,7 +30,6 @@ static QueueHandle_t send_result_queue;
 
 static void on_esp_now_data_send(const uint8_t *mac_addr, esp_now_send_status_t status);
 static void on_esp_now_data_receive(const esp_now_recv_info_t *esp_now_info, const uint8_t *data, int data_len);
-static void print_recv_info(const esp_now_recv_info_t *esp_now_info);
 static void esp_now_send_task(void *params);
 static void esp_now_receive_task(void *params);
 
@@ -100,7 +98,6 @@ static void on_esp_now_data_send(const uint8_t *mac_addr, esp_now_send_status_t 
  */
 static void on_esp_now_data_receive(const esp_now_recv_info_t *esp_now_info, const uint8_t *data, int data_len) {
   uint8_t *mac_addr = esp_now_info->src_addr;
-  uint8_t *des_addr = esp_now_info->des_addr;
 
   if (mac_addr == NULL || data == NULL || data_len <= 0) {
     ESP_LOGE(TAG, "Receive cb arg error");
@@ -116,30 +113,6 @@ static void on_esp_now_data_receive(const esp_now_recv_info_t *esp_now_info, con
   if (xQueueSend(receive_queue, &cb, ESPNOW_MAXDELAY) != pdTRUE) {
     ESP_LOGW(TAG, "Send receive queue fail");
   }
-}
-
-static void print_recv_info(const esp_now_recv_info_t *esp_now_info) {
-  char mac_src_buff[32];
-  sprintf(mac_src_buff, MACSTR, MAC2STR(esp_now_info->src_addr));
-
-  char mac_dest_buff[32];
-  sprintf(mac_dest_buff, MACSTR, MAC2STR(esp_now_info->des_addr));
-
-  wifi_pkt_rx_ctrl_t ctrl;
-  memset(&ctrl, 0, sizeof(wifi_pkt_rx_ctrl_t));
-  memcpy(&ctrl, esp_now_info->rx_ctrl, sizeof(wifi_pkt_rx_ctrl_t));
-
-  printf("\n******\n");
-  printf("mac_src: %s\n", mac_src_buff);
-  printf("mac_des: %s\n", mac_dest_buff);
-  printf("rssi: %d dBm\n", ctrl.rssi);
-  printf("channel: %d\n", ctrl.channel);
-  printf("secondary_channel: %d\n", ctrl.secondary_channel);
-  printf("timestamp: %d microsecond\n", ctrl.timestamp);
-  printf("ampdu_cnt: %d\n", ctrl.ampdu_cnt); /**< the number of subframes aggregated in AMPDU */
-  printf("sig_len: %d\n", ctrl.sig_len);     /**< length of packet including Frame Check Sequence(FCS) */
-  printf("sig_mode: %d\n", ctrl.sig_mode);   /**< Protocol of the reveived packet, 0: non HT(11bg) packet; 1: HT(11n) packet; 3: VHT(11ac) packet */
-  printf("rx_state: %d\n", ctrl.rx_state);   /**< state of the packet. 0: no error; others: error numbers which are not public */
 }
 
 QueueHandle_t esp_now_create_send_ack_queue() {
@@ -219,10 +192,5 @@ void esp_now_receive_task(void *params) {
       gw_espnow_broadcast_parser(&data);
     } 
     gw_espnow_message_parser(&data);
-
-    // sendind data to old server
-    if (!strncmp(data.data, "{\"name\":\"home_01\"", 17) ||
-        !strncmp(data.data, "{\"name\":\"outdoor\"", 17))
-      send_to_old_server(data.data);
   }
 }

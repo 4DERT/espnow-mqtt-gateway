@@ -24,7 +24,7 @@ int gw_get_device_list_idx() {
   return device_list_idx;
 }
 
-device_t* gw_find_device_by_mac(uint8_t mac[]) {
+device_t* gw_find_device_by_mac(const uint8_t mac[]) {
   for (int i = 0; i <= device_list_idx; i++) {
     if (!memcmp(device_list[i].mac, mac, ESP_NOW_ETH_ALEN))
       return &device_list[i];
