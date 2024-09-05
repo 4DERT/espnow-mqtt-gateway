@@ -75,8 +75,11 @@ dic_device_t make_dic_device(espnow_event_receive_cb_t *data) {
   strcpy(result.last_msg, data->data);
 
   device_t *device = gw_find_device_by_mac(data->esp_now_info.src_addr);
-  result.is_paired = !(device == NULL);
-
+  if(device != NULL) {
+    result.is_paired = true;
+    result.pair_msg = device->pair_msg;
+  }
+  
   result._is_taken = false;
 
   return result;
@@ -91,6 +94,7 @@ void init_device_list() {
     device.is_paired = true;
     device._is_taken = true;
     memcpy(&device.mac, &paired_devices[i].mac, ESP_NOW_ETH_ALEN);
+    device.pair_msg = paired_devices[i].pair_msg;
 
     // add to list
     int idx = find_slot();
@@ -190,6 +194,11 @@ char *dic_create_device_list_json() {
       cJSON_AddNumberToObject(device, "last_msg_time",
                               (double)device_list[i].last_msg_time);
       cJSON_AddStringToObject(device, "user_name", device_list[i].user_name);
+      if (device_list[i].pair_msg != NULL) {
+          cJSON_AddStringToObject(device, "pair_msg", device_list[i].pair_msg);
+      } else {
+          cJSON_AddStringToObject(device, "pair_msg", "");
+      }
       cJSON_AddStringToObject(device, "last_msg", device_list[i].last_msg);
 
       cJSON_AddItemToArray(root, device);

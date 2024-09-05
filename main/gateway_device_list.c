@@ -44,7 +44,7 @@ bool gw_add_device(device_t* device) {
     return false;
   }
 
-  memcpy(&device_list[device_list_idx], device, ESP_NOW_ETH_ALEN);
+  memcpy(&device_list[device_list_idx], device, sizeof(device_t));
   device_list_idx++;
 
   // save to flash

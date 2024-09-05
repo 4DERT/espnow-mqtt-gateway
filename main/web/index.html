@@ -55,7 +55,7 @@
                 table.style.borderCollapse = 'collapse';
 
                 // Add table header
-                const headers = ['MAC Address', 'Paired', 'RSSI', 'Last Message Time', 'Last Message'];
+                const headers = ['MAC address', 'Paired', 'Pair message', 'RSSI', 'Last message time', 'Last message'];
                 const thead = document.createElement('thead');
                 const headerRow = document.createElement('tr');
 
@@ -89,6 +89,12 @@
                     td.textContent = device.is_paired ? 'Yes' : 'No';
                     td.style.padding = '8px';
                     td.style.textAlign = 'center';
+                    row.appendChild(td);
+
+                    // Insert Pair message
+                    td = document.createElement('td');
+                    td.textContent = device.pair_msg ? device.pair_msg : '-';
+                    td.style.padding = '8px';
                     row.appendChild(td);
 
                     // Insert RSSI

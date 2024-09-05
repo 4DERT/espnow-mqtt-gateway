@@ -41,6 +41,7 @@ void gw_espnow_broadcast_parser(espnow_event_receive_cb_t* data) {
 
   // Check if this is pair request
   if (!strncmp(data->data, GW_PAIR_HEADER, strlen(GW_PAIR_HEADER))) {
+    memcpy(device.pair_msg, data->data, data->data_len);
     gw_on_pair_request(&device);
   }
 }

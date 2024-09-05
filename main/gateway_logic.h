@@ -28,6 +28,7 @@ typedef struct mac_t { uint8_t x[ESP_NOW_ETH_ALEN]; } mac_t;
 typedef struct device_t {
     uint8_t mac[ESP_NOW_ETH_ALEN];
     bool is_online;
+    char pair_msg[ESP_NOW_MAX_DATA_LEN];
 } device_t;
 
 void gw_espnow_broadcast_parser(espnow_event_receive_cb_t* packet);

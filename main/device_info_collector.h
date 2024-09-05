@@ -18,6 +18,7 @@ typedef struct {
   time_t last_msg_time;
   char user_name[16];
   char last_msg[ESP_NOW_MAX_DATA_LEN];
+  char* pair_msg;
 
   // private
 
