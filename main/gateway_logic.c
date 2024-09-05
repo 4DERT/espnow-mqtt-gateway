@@ -6,6 +6,7 @@
 #include "esp_now.h"
 #include "freertos/FreeRTOS.h"
 #include "gateway_device_list.h"
+#include "device_info_collector.h"
 #include "mqtt.h"
 #include "string.h"
 #include "cJSON.h"
@@ -18,21 +19,91 @@ static const char* TAG = "gateway";
 
 static void gw_send_to(const device_t* device, const char* msg, QueueHandle_t* ack_queue);
 
+void gw_publish_pending_pairing_devices() {
+  dic_device_t *device_list;
+  SemaphoreHandle_t device_list_mutex;
+
+  dic_get_device_list(&device_list, &device_list_mutex);
+
+  if (device_list != NULL && device_list_mutex != NULL) {
+
+    cJSON *root = cJSON_CreateArray();
+
+    // Lock mutex for secure access to device list
+    if (xSemaphoreTake(device_list_mutex, portMAX_DELAY) == pdTRUE) {
+      
+      for (int i = 0; i < DIC_DEVICE_LIST_SIZE; i++) {
+          dic_device_t* device = &device_list[i];
+
+          if (device->_is_taken && 
+              !device->is_paired && 
+              (strncmp(device->last_msg, GW_PAIR_HEADER, strlen(GW_PAIR_HEADER)) == 0) && 
+              ((time(NULL) - device->last_msg_time) < GW_PAIR_MAX_TIME_S)) {
+
+              // Create a JSON object for the device
+              cJSON *cj_device = cJSON_CreateObject();
+
+              char mac_str[18];
+              snprintf(mac_str, sizeof(mac_str), MACSTR, MAC2STR(device->mac.x));
+
+              cJSON_AddStringToObject(cj_device, "mac", mac_str);
+
+              // Remove the "SHPR:" prefix and parse the remaining part as JSON
+              char *json_str = device->last_msg + strlen(GW_PAIR_HEADER);
+
+              cJSON *pairing_json = cJSON_Parse(json_str);
+              if (pairing_json != NULL) {
+                  // Extract the "type" field from the JSON
+                  cJSON *type = cJSON_GetObjectItem(pairing_json, "type");
+                  if (type != NULL && cJSON_IsNumber(type)) {
+                      cJSON_AddNumberToObject(cj_device, "type", type->valueint);
+                  }
+
+                  // Extract the "cfg" field from the JSON
+                  cJSON *cfg = cJSON_GetObjectItem(pairing_json, "cfg");
+                  if (cfg != NULL) {
+                      cJSON_AddItemToObject(cj_device, "cfg", cJSON_Duplicate(cfg, 1));
+                  }
+
+                  // Free the parsed JSON memory
+                  cJSON_Delete(pairing_json);
+              } else {
+                  ESP_LOGE(TAG, "Failed to parse pairing message for device: %s", mac_str);
+              }
+
+              // Add the device to the JSON array
+              cJSON_AddItemToArray(root, cj_device);
+          }
+      }
+
+      // free mutex
+      xSemaphoreGive(device_list_mutex);
+
+      char *json_str = cJSON_PrintUnformatted(root);
+      cJSON_Delete(root); 
+
+      mqtt_publish(GW_GATEWAY_PENDING_PAIRING_TOPIC, json_str, 0, 0, 1);
+
+      free(json_str);
+
+    } else {
+      ESP_LOGE(TAG, "Failed to take device list mutex");
+    }
+  } else {
+    ESP_LOGE(TAG, "Failed to get device list or mutex");
+  }
+}
+
 void gw_on_pair_request(device_t* device) {
   ESP_LOGI(TAG, "Pair request from: " MACSTR, MAC2STR(device->mac));
-  char* topic = NULL;
-  asprintf(&topic, GW_TOPIC_CMD, MAC2STR(device->mac));
 
-  gw_add_device(device);
+  if (gw_find_device_by_mac(device->mac) != NULL) {
+    ESP_LOGW(TAG, "Device already paired");
+    gw_send_to(device, GW_ACCEPT_PAIR, NULL);
+    return;
+  }
 
-  mqtt_subscribe(topic, 2);
-  free(topic);
-
-  // temporarly all pair request will be accepted
-  // send "accept pair" message
-  gw_send_to(device, GW_ACCEPT_PAIR, NULL);
-
-  gw_publish_paired_devices();
+  gw_publish_pending_pairing_devices();
 }
 
 void gw_espnow_broadcast_parser(espnow_event_receive_cb_t* data) {
@@ -144,8 +215,105 @@ bool get_mac_from_topic(const char* topic, uint8_t* ret_mac) {
   return true;
 }
 
+bool gw_is_pair_accept_topic(const char* topic) {
+  char *pair_accept_topic = NULL;
+  asprintf(&pair_accept_topic, "%s%s", mqtt_get_topic_prefix(), GW_GATEWAY_ACCEPT_PAIR_TOPIC);
+
+  if (pair_accept_topic == NULL) {
+    ESP_LOGE(TAG, "Memory allocation for pair_accept_topic failed");
+    return false;
+  }
+
+  if (strncmp(topic, pair_accept_topic, strlen(pair_accept_topic)) != 0) {
+    free(pair_accept_topic); 
+    return false;  // Topic does not match
+  }
+
+  free(pair_accept_topic);
+  return true;
+}
+
+bool gw_get_pair_msg_from_last_msg(mac_t* mac, char* out) {
+  dic_device_t *device_list;
+  SemaphoreHandle_t device_list_mutex;
+  dic_get_device_list(&device_list, &device_list_mutex);
+
+  if (device_list != NULL && device_list_mutex != NULL) {
+
+    // Lock mutex for secure access to device list
+    if (xSemaphoreTake(device_list_mutex, portMAX_DELAY) == pdTRUE) {
+      
+      for (int i = 0; i < DIC_DEVICE_LIST_SIZE; i++) {
+          dic_device_t* device = &device_list[i];
+
+          if (device->_is_taken && 
+              !device->is_paired && 
+              (strncmp(device->last_msg, GW_PAIR_HEADER, strlen(GW_PAIR_HEADER)) == 0) &&
+              memcmp(device->mac.x, mac->x, ESP_NOW_ETH_ALEN) == 0) {
+
+                snprintf(out, ESP_NOW_MAX_DATA_LEN, "%s", device->last_msg);
+
+                // free mutex
+                xSemaphoreGive(device_list_mutex);
+                return true;
+
+          }
+      }
+
+      // free mutex
+      xSemaphoreGive(device_list_mutex);
+      ESP_LOGE(TAG, "Failed to find device");
+
+    } else {
+      ESP_LOGE(TAG, "Failed to take device list mutex");
+    }
+  } else {
+    ESP_LOGE(TAG, "Failed to get device list or mutex");
+  }
+
+  return false;
+}
+
+void gw_pair(mac_t* mac) {
+  char* topic = NULL;
+  asprintf(&topic, GW_TOPIC_CMD, MAC2STR(mac->x));
+
+  device_t device;
+  memcpy(device.mac, mac->x, ESP_NOW_ETH_ALEN);
+  device.is_online = true;
+
+  if(gw_get_pair_msg_from_last_msg(mac, device.pair_msg)) {
+    gw_add_device(&device);
+
+    mqtt_subscribe(topic, 2);
+    gw_send_to(&device, GW_ACCEPT_PAIR, NULL);
+
+    dic_update();
+    gw_publish_paired_devices();
+    gw_publish_pending_pairing_devices();
+  } else {
+    ESP_LOGE(TAG, "Error while pairing device!");
+  }
+
+  free(topic);
+}
+
 void gw_mqtt_parser(const char* topic, int topic_len, const char* data, int data_len) {
   ESP_LOGD(TAG, "gw_mqtt_parser");
+
+  // Check if it is a pairing request
+  if(gw_is_pair_accept_topic(topic)) {
+    mac_t mac;
+
+    if(sscanf(data, "%2hhx:%2hhx:%2hhx:%2hhx:%2hhx:%2hhx", 
+               &mac.x[0], &mac.x[1], &mac.x[2], &mac.x[3], &mac.x[4], &mac.x[5]) == 6) {
+      gw_pair(&mac);
+    } else {
+      ESP_LOGE(TAG, "Error while pairing device - wrong mac");
+    }
+
+    return;
+  }
 
   uint8_t mac[ESP_NOW_ETH_ALEN];
   if (!get_mac_from_topic(topic, mac)) {

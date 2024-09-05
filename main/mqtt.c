@@ -82,8 +82,12 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     case MQTT_EVENT_CONNECTED:
       ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
       is_connected = true;
+      
       mqtt_publish(GW_GATEWAY_AVAILABILITY, GW_AVAILABILITY_ONLINE, 0, 0, 1);
       gw_publish_paired_devices();
+      gw_publish_pending_pairing_devices();
+
+      mqtt_subscribe(GW_GATEWAY_ACCEPT_PAIR_TOPIC, 0);
       gw_subscribe_devices();
       break;
 

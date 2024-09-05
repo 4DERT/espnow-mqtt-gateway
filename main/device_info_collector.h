@@ -37,4 +37,6 @@ extern void dic_print_device_list();
 
 extern char *dic_create_device_list_json();
 
+extern void dic_update();
+
 #endif // DEVICE_INFO_COLLECTOR_H_

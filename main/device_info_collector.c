@@ -55,16 +55,43 @@ void analyze_data(dic_device_t *device) {
   }
 }
 
-void update() {
-  if (xSemaphoreTake(device_list_mutex, portMAX_DELAY) == pdTRUE) {
-    // iterate over the device_list
-    // check time of last message
-    // if time is grater then 1 hour and device is not paired delete it from
-    // device_list
+void dic_update() {
+  time_t current_time = time(NULL);
 
-    xSemaphoreGive(device_list_mutex);
+  if (xSemaphoreTake(device_list_mutex, portMAX_DELAY) == pdTRUE) {
+      for (int i = 0; i < DIC_DEVICE_LIST_SIZE; i++) {
+          dic_device_t *device = &device_list[i];
+
+          // Check if the device slot is taken and the device is not paired
+          if (device->_is_taken && !device->is_paired) {
+              // Check if the device's pair status has changed using gw_find_device_by_mac
+              device_t *found_device = gw_find_device_by_mac(device->mac.x);
+              if (found_device != NULL) {
+                  // Update the device status to paired
+                  device->is_paired = true;
+                  device->pair_msg = found_device->pair_msg;
+                  ESP_LOGI(TAG, "Device with MAC: " MACSTR " is now paired.", MAC2STR(device->mac.x));
+                  continue;  // Skip the removal process, as the device is now paired
+              }
+
+              // Calculate the time since the last message was received
+              double time_diff = difftime(current_time, device->last_msg_time);
+
+              // If more than 1 hour (3600 seconds) has passed, remove the device
+              if (time_diff > 3600) {
+                  ESP_LOGI(TAG, "Removing unpaired device with MAC: " MACSTR, MAC2STR(device->mac.x));
+
+                  // Mark the device slot as free
+                  device->_is_taken = false;
+              }
+          }
+      }
+
+      xSemaphoreGive(device_list_mutex);  // Release the mutex after the operation
   }
 }
+
+
 
 dic_device_t make_dic_device(espnow_event_receive_cb_t *data) {
   dic_device_t result = {0};
@@ -126,7 +153,7 @@ void dic_task(void *params) {
 
     // frequently update devices in list
     // lock mutex and update device list (time, etc)
-    update();
+    dic_update();
   }
 }
 
