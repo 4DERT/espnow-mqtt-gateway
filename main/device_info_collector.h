@@ -19,6 +19,7 @@ typedef struct {
   char user_name[16];
   char last_msg[ESP_NOW_MAX_DATA_LEN];
   const char* pair_msg;
+  bool can_be_paired;
 
   // private
 

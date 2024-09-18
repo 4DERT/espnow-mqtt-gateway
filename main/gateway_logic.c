@@ -69,11 +69,7 @@ void gw_publish_pending_pairing_devices() {
             for (int i = 0; i < DIC_DEVICE_LIST_SIZE; i++) {
                 dic_device_t* device = &device_list[i];
 
-                if (device->_is_taken && 
-                    !device->is_paired && 
-                    (strncmp(device->last_msg, GW_PAIR_HEADER, strlen(GW_PAIR_HEADER)) == 0) && 
-                    ((time(NULL) - device->last_msg_time) < GW_PAIR_MAX_TIME_S)) {
-
+                if (device->can_be_paired ) {
                     // Create a JSON object for the device
                     cJSON *cj_device = cJSON_CreateObject();
 

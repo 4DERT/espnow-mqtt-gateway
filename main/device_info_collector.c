@@ -69,6 +69,7 @@ void dic_update() {
               if (found_device != NULL) {
                   // Update the device status to paired
                   device->is_paired = true;
+                  device->can_be_paired = false;
                   device->pair_msg = found_device->pair_msg;
                   ESP_LOGI(TAG, "Device with MAC: " MACSTR " is now paired.", MAC2STR(device->mac.x));
                   continue;  // Skip the removal process, as the device is now paired
@@ -83,7 +84,14 @@ void dic_update() {
 
                   // Mark the device slot as free
                   device->_is_taken = false;
+
+                  continue;
               }
+
+              // check if device can be still paired
+              device->can_be_paired = ((strncmp(device->last_msg, GW_PAIR_HEADER, strlen(GW_PAIR_HEADER))==0) 
+                && ((time(NULL) - device->last_msg_time) < GW_PAIR_MAX_TIME_S));
+        
           }
       }
 
@@ -105,6 +113,9 @@ dic_device_t make_dic_device(espnow_event_receive_cb_t *data) {
   if(device != NULL) {
     result.is_paired = true;
     result.pair_msg = device->pair_msg;
+  } else {
+    // check if device can be paired
+    result.can_be_paired = (strncmp(data->data, GW_PAIR_HEADER, strlen(GW_PAIR_HEADER)) == 0);
   }
   
   result._is_taken = false;
@@ -217,6 +228,7 @@ char *dic_create_device_list_json() {
 
       cJSON_AddStringToObject(device, "mac", mac_str);
       cJSON_AddBoolToObject(device, "is_paired", device_list[i].is_paired);
+      cJSON_AddBoolToObject(device, "can_be_paired", device_list[i].can_be_paired);
       cJSON_AddNumberToObject(device, "rssi", device_list[i].rssi);
       cJSON_AddNumberToObject(device, "last_msg_time",
                               (double)device_list[i].last_msg_time);
