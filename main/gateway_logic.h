@@ -41,5 +41,6 @@ void gw_espnow_message_parser(espnow_event_receive_cb_t* data);
 void gw_subscribe_devices();
 void gw_publish_paired_devices();
 void gw_publish_pending_pairing_devices();
+void gw_pair(mac_t* mac);
 
 #endif //GATEWAY_LOGIC_H_

@@ -9,11 +9,10 @@
 #include "esp_log.h"
 #include "esp_random.h"
 
-#include "settings_page.h"
 #include "device_info_collector.h"
+#include "settings_page.h"
 
 static const char *TAG = "webserver";
-
 
 /* Handler to respond with the contents of favicon.ico */
 esp_err_t favicon_get_handler(httpd_req_t *req) {
@@ -62,11 +61,10 @@ esp_err_t styles_get_handler(httpd_req_t *req) {
   return ESP_OK;
 }
 
-static httpd_uri_t styles_uri= {.uri = "/styles.css",
+static httpd_uri_t styles_uri = {.uri = "/styles.css",
                                  .method = HTTP_GET,
                                  .handler = styles_get_handler,
                                  .user_ctx = NULL};
-
 
 /* Handler to respond with the contents of index.html */
 esp_err_t device_list_get_handler(httpd_req_t *req) {
@@ -74,23 +72,81 @@ esp_err_t device_list_get_handler(httpd_req_t *req) {
 
   char *json_str = dic_create_device_list_json();
   if (json_str) {
-      ESP_LOGD(TAG, "%s\n", json_str);
-      
-      httpd_resp_set_type(req, "application/json");
-      httpd_resp_send(req, json_str, strlen(json_str));
-      free(json_str);
+    ESP_LOGD(TAG, "%s\n", json_str);
 
-      return ESP_OK;
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, json_str, strlen(json_str));
+    free(json_str);
+
+    return ESP_OK;
   }
-
 
   return ESP_ERR_HTTPD_ALLOC_MEM;
 }
 
-static httpd_uri_t device_list_uri= {.uri = "/api/devices",
-                                 .method = HTTP_GET,
-                                 .handler = device_list_get_handler,
-                                 .user_ctx = NULL};
+static httpd_uri_t device_list_uri = {.uri = "/api/devices",
+                                      .method = HTTP_GET,
+                                      .handler = device_list_get_handler,
+                                      .user_ctx = NULL};
+
+/* /pair POST */
+
+esp_err_t get_request(httpd_req_t *req, char *out_buf, size_t out_buf_size) {
+  int ret, remaining = req->content_len;
+
+  while (remaining > 0) {
+    if ((ret = httpd_req_recv(req, out_buf,
+                              remaining < out_buf_size ? remaining
+                                                       : out_buf_size)) <= 0) {
+      if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
+        continue;
+      }
+      return ESP_FAIL;
+    }
+    remaining -= ret;
+  }
+
+  out_buf[req->content_len] = '\0';
+  return ESP_OK;
+}
+
+esp_err_t pair_post_handler(httpd_req_t *req) {
+  ESP_LOGI(TAG, "pair_post_handler");
+
+  const int POST_BUF_SIZE = 200;
+
+  if (req->content_len >= POST_BUF_SIZE) {
+    return ESP_FAIL;
+  }
+
+  char buf[POST_BUF_SIZE];
+  if (get_request(req, buf, sizeof(buf)) != ESP_OK) {
+    return ESP_FAIL;
+  }
+  char temp_buf[32];
+
+  printf("buf %s\n", buf);
+
+  if (httpd_query_key_value(buf, "mac", temp_buf, sizeof(temp_buf)) == ESP_OK) {
+    mac_t mac;
+    if (sscanf(temp_buf, "%2hhx%%3A%2hhx%%3A%2hhx%%3A%2hhx%%3A%2hhx%%3A%2hhx",
+               &mac.x[0], &mac.x[1], &mac.x[2], &mac.x[3], &mac.x[4],
+               &mac.x[5]) == 6) {
+      gw_pair(&mac);
+    }
+  }
+
+  httpd_resp_set_status(req, "302 Found");
+  httpd_resp_set_hdr(req, "Location", "/");
+  httpd_resp_sendstr(req, "Redirecting to the main page...");
+
+  return ESP_OK;
+}
+
+static httpd_uri_t pair_post_uri = {.uri = "/pair",
+                                    .method = HTTP_POST,
+                                    .handler = pair_post_handler,
+                                    .user_ctx = NULL};
 
 httpd_handle_t webserver_start(void) {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -104,6 +160,7 @@ httpd_handle_t webserver_start(void) {
     httpd_register_uri_handler(server, &settings_page_post);
     httpd_register_uri_handler(server, &settings_page_json_get);
     httpd_register_uri_handler(server, &device_list_uri);
+    httpd_register_uri_handler(server, &pair_post_uri);
     ESP_LOGI(TAG, "ESP32 Web Server started");
   } else {
     ESP_LOGE(TAG, "ESP32 Web Server not started - ERROR");

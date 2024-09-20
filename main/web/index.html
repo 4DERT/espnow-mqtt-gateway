@@ -19,130 +19,259 @@
         </div>
     </nav>
     <main>
-        <div id="device-table-container"></div>
+
+        <div class="container" id="device-list-container"></div>
+
+        <div id="modalRename" class="modal">
+            <div class="modal-content">
+                <span id="modalRenameClose" class="modal-close">&times;</span>
+                <p>Enter the new device name.</p>
+                <form method="post" action="/rename">
+                    <input type="text" id="newDeviceName" name="name" maxlength="20" placeholder="New device name">
+                    <input type="hidden" id="renameDeviceMac" name="mac">
+                    <div class="modal-buttons-container">
+                        <button>Save</button>
+                        <button type="button" id="modalRenameCancel">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="modalPair" class="modal">
+            <div class="modal-content">
+                <span id="modalPairClose" class="modal-close">&times;</span>
+                <p>Are you sure you want to pair this device?</p>
+                <form method="post" action="/pair">
+                    <input type="hidden" id="pairDeviceMac" name="mac">
+                    <div class="modal-buttons-container">
+                        <button>Pair</button>
+                        <button type="button" id="modalPairCancel">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="modalUnpair" class="modal">
+            <div class="modal-content">
+                <span id="modalUnpairClose" class="modal-close">&times;</span>
+                <p>Are you sure you want to unpair this device?</p>
+                <form method="post" action="/unpair">
+                    <input type="hidden" id="unpairDeviceMac" name="mac">
+                    <div class="modal-buttons-container">
+                        <button>Unpair</button>
+                        <button type="button" id="modalUnpairCancel">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
     </main>
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const container = document.getElementById('device-table-container');
+        let expandedDevices = {};
 
-            // Function to calculate time ago
-            function timeAgo(timestamp) {
-                const now = Math.floor(Date.now() / 1000);  // current time in seconds
-                const secondsAgo = now - timestamp;
+        function openModal(modalId, macInputId, macAddress) {
+            const macInput = document.getElementById(macInputId);
+            macInput.value = macAddress;
+            const modal = document.getElementById(modalId);
+            modal.style.display = "block";
+        }
 
-                if (secondsAgo < 60) {
-                    return `${secondsAgo} s ago`;
-                } else if (secondsAgo < 3600) {
-                    const minutes = Math.floor(secondsAgo / 60);
-                    return `${minutes} min ago`;
-                } else if (secondsAgo < 86400) {
-                    const hours = Math.floor(secondsAgo / 3600);
-                    return `${hours} h ago`;
-                } else {
-                    const days = Math.floor(secondsAgo / 86400);
-                    return `${days} d ago`;
+        function setupModal(modalId, closeBtnId, cancelBtnId) {
+            const modal = document.getElementById(modalId);
+            const closeBtn = document.getElementById(closeBtnId);
+            const cancelBtn = document.getElementById(cancelBtnId);
+
+            closeBtn.onclick = () => modal.style.display = "none";
+            cancelBtn.onclick = () => modal.style.display = "none";
+        }
+
+        // Function to calculate time ago
+        function timeAgo(timestamp) {
+            const now = Math.floor(Date.now() / 1000);  // current time in seconds
+            const secondsAgo = now - timestamp;
+
+            if (secondsAgo < 60) {
+                return `${secondsAgo} s ago`;
+            } else if (secondsAgo < 3600) {
+                const minutes = Math.floor(secondsAgo / 60);
+                return `${minutes} min ago`;
+            } else if (secondsAgo < 86400) {
+                const hours = Math.floor(secondsAgo / 3600);
+                return `${hours} h ago`;
+            } else {
+                const days = Math.floor(secondsAgo / 86400);
+                return `${days} d ago`;
+            }
+        }
+
+        function renderSignalBars(rssi, containerDiv) {
+            const thresholds = [-90, -85, -75, -65];
+            const levels = ['one-bars', 'one-bars', 'two-bars', 'three-bars', 'four-bars'];
+            let signalLevel = levels[0];
+
+            for (let i = thresholds.length - 1; i >= 0; i--) {
+                if (rssi >= thresholds[i]) {
+                    signalLevel = levels[i + 1];
+                    break;
                 }
             }
 
-            // Function to create table
-            function createTable(devices) {
-                // Clear the previous table
-                container.innerHTML = '';
+            const signalBox = document.createElement('div');
+            signalBox.classList.add('signal-bars', 'mt1', 'sizing-box', signalLevel);
 
-                const table = document.createElement('table');
-                table.setAttribute('border', '1');
-                table.style.width = '100%';
-                table.style.borderCollapse = 'collapse';
+            signalBox.innerHTML = '<div class="first-bar bar"></div>' +
+                '<div class="second-bar bar"></div>' +
+                '<div class="third-bar bar"></div>' +
+                '<div class="fourth-bar bar"></div>';
 
-                // Add table header
-                const headers = ['MAC address', 'Paired', 'Pair message', 'RSSI', 'Last message time', 'Last message'];
-                const thead = document.createElement('thead');
-                const headerRow = document.createElement('tr');
+            containerDiv.appendChild(signalBox)
+        }
 
-                headers.forEach(headerText => {
-                    const th = document.createElement('th');
-                    th.textContent = headerText;
-                    th.style.padding = '8px';
-                    th.style.backgroundColor = '#333';
-                    th.style.color = 'white';
-                    headerRow.appendChild(th);
-                });
+        function sortDevices(devices) {
+            return devices.sort((a, b) => {
+                const rankA = a.can_be_paired ? 1 : (a.is_paired ? 2 : 3);
+                const rankB = b.can_be_paired ? 1 : (b.is_paired ? 2 : 3);
+                return rankA - rankB;
+            });
+        }
 
-                thead.appendChild(headerRow);
-                table.appendChild(thead);
+        function createDeviceCard(device) {
+            const card = document.createElement('div');
+            card.classList.add('device-card');
 
-                // Add table body
-                const tbody = document.createElement('tbody');
+            const cardHeader = createCardHeader(device);
+            const cardBody = createCardBody(device);
 
-                devices.forEach(device => {
-                    const row = document.createElement('tr');
-
-                    // Insert MAC Address
-                    let td = document.createElement('td');
-                    td.textContent = device.mac;
-                    td.style.padding = '8px';
-                    td.style.fontFamily = 'Monospace';
-                    row.appendChild(td);
-
-                    // Insert Paired Status
-                    td = document.createElement('td');
-                    td.textContent = device.is_paired ? 'Yes' : 'No';
-                    td.style.padding = '8px';
-                    td.style.textAlign = 'center';
-                    row.appendChild(td);
-
-                    // Insert Pair message
-                    td = document.createElement('td');
-                    td.textContent = device.pair_msg ? device.pair_msg : '-';
-                    td.style.padding = '8px';
-                    row.appendChild(td);
-
-                    // Insert RSSI
-                    td = document.createElement('td');
-                    td.textContent = device.rssi != 0 ? device.rssi : '-';
-                    td.style.padding = '8px';
-                    td.style.textAlign = 'center';
-                    row.appendChild(td);
-
-                    // Insert Last Message Time (in "time ago" format)
-                    td = document.createElement('td');
-                    if (device.last_msg_time) {
-                        td.textContent = timeAgo(device.last_msg_time);
-                    } else {
-                        td.textContent = '-';
-                    }
-                    td.style.padding = '8px';
-                    td.style.textAlign = 'center';
-                    row.appendChild(td);
-
-                    // Insert Last Message
-                    td = document.createElement('td');
-                    td.textContent = device.last_msg ? device.last_msg : '-';
-                    td.style.padding = '8px';
-                    row.appendChild(td);
-
-                    tbody.appendChild(row);
-                });
-
-                table.appendChild(tbody);
-                container.appendChild(table);
+            // Check if the card should be extended
+            if (expandedDevices[device.mac]) {
+                cardBody.classList.add('visible');
             }
 
-            // Function to fetch devices data from API
-            function fetchDevices() {
-                fetch('/api/devices')
-                    .then(response => response.json())
-                    .then(data => {
-                        createTable(data);
-                    })
-                    .catch(error => console.error('Error fetching devices:', error));
+            // Add click event to card header
+            cardHeader.addEventListener('click', () => {
+                cardBody.classList.toggle('visible');
+                expandedDevices[device.mac] = cardBody.classList.contains('visible');
+            });
+
+            card.appendChild(cardHeader);
+            card.appendChild(cardBody);
+
+            return card;
+        }
+
+        function createCardHeader(device) {
+            const cardHeader = document.createElement('div');
+            cardHeader.classList.add('device-card-header');
+
+            const left = document.createElement('div');
+            const right = document.createElement('div');
+            right.classList.add('device-card-right');
+
+            const name = document.createElement('div');
+            name.classList.add('name');
+            name.innerHTML = device.user_name
+                ? `${device.user_name}<div class="mac-address-light"> (${device.mac})</div>`
+                : `<div class="mac-address-bold">${device.mac}</div>`;
+
+            const lastMessageTime = document.createElement('div');
+            lastMessageTime.classList.add('last-message-time');
+            lastMessageTime.textContent = device.last_msg_time
+                ? 'Last message ' + timeAgo(device.last_msg_time)
+                : '-';
+
+            left.appendChild(name);
+            left.appendChild(lastMessageTime);
+
+            renderSignalBars(device.rssi, right);
+
+            if (device.can_be_paired) {
+                const pairButton = document.createElement('button');
+                pairButton.innerHTML = 'Pair';
+                pairButton.classList.add('pair-button');
+                pairButton.onclick = () => openModal("modalPair", "pairDeviceMac", device.mac);
+                right.appendChild(pairButton);
             }
 
-            // Fetch data on page load
+            cardHeader.appendChild(left);
+            cardHeader.appendChild(right);
+
+            return cardHeader;
+        }
+
+        function createCardBody(device) {
+            const cardBody = document.createElement('div');
+            cardBody.classList.add('device-card-body');
+
+            const lastMessage = document.createElement('div');
+            lastMessage.innerHTML = `Last message:<br><code>${device.last_msg || '-'}</code>`;
+
+            const rssi = document.createElement('div');
+            rssi.innerHTML = `RSSI:<br><code>${device.rssi !== 0 ? device.rssi : '-'}</code>`;
+
+            const pairMessage = document.createElement('div');
+            pairMessage.innerHTML = device.is_paired
+                ? `Pair message:<br><code>${device.pair_msg || '-'}</code>`
+                : 'Device is not paired';
+
+            cardBody.appendChild(lastMessage);
+            cardBody.appendChild(rssi);
+            cardBody.appendChild(pairMessage);
+
+            if (device.is_paired) {
+                const nameButton = document.createElement('button');
+                nameButton.innerHTML = 'Rename';
+                nameButton.onclick = () => openModal("modalRename", "renameDeviceMac", device.mac);
+
+                const unpairButton = document.createElement('button');
+                unpairButton.innerHTML = 'Unpair';
+                unpairButton.onclick = () => openModal("modalUnpair", "unpairDeviceMac", device.mac);
+
+                cardBody.appendChild(nameButton);
+                cardBody.appendChild(unpairButton);
+            }
+
+            return cardBody;
+        }
+
+        function createDeviceList(devices) {
+            const container = document.getElementById('device-list-container');
+            container.innerHTML = '';
+
+            const sortedDevices = sortDevices(devices);
+
+            sortedDevices.forEach(device => {
+                const card = createDeviceCard(device);
+                container.appendChild(card);
+            });
+        }
+
+        // Function that retrieves device data from API
+        async function fetchDevices() {
+            try {
+                const response = await fetch('/api/devices');
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const data = await response.json();
+                createDeviceList(data);
+            } catch (error) {
+                console.error('Error fetching devices: ', error);
+                const container = document.getElementById('device-list-container');
+                container.innerHTML = '<p class="error-message">Unable to load devices. Please try again later.</p>';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // init modals
+            setupModal("modalRename", "modalRenameClose", "modalRenameCancel");
+            setupModal("modalPair", "modalPairClose", "modalPairCancel");
+            setupModal("modalUnpair", "modalUnpairClose", "modalUnpairCancel");
+
+            // Download data after page load
             fetchDevices();
 
-            // Set up interval to fetch data every 10 seconds
-            setInterval(fetchDevices, 10000); // 10,000 milliseconds = 10 seconds
+            // Set the data download interval to every 10 seconds
+            setInterval(fetchDevices, 10000); // in milliseconds
         });
 
     </script>
