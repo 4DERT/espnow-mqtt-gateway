@@ -56,47 +56,60 @@ void analyze_data(dic_device_t *device) {
 }
 
 void dic_update() {
-  time_t current_time = time(NULL);
+    time_t current_time = time(NULL);
 
-  if (xSemaphoreTake(device_list_mutex, portMAX_DELAY) == pdTRUE) {
-      for (int i = 0; i < DIC_DEVICE_LIST_SIZE; i++) {
-          dic_device_t *device = &device_list[i];
+    if (xSemaphoreTake(device_list_mutex, portMAX_DELAY) == pdTRUE) {
+        for (int i = 0; i < DIC_DEVICE_LIST_SIZE; i++) {
+            dic_device_t *device = &device_list[i];
 
-          // Check if the device slot is taken and the device is not paired
-          if (device->_is_taken && !device->is_paired) {
-              // Check if the device's pair status has changed using gw_find_device_by_mac
-              device_t *found_device = gw_find_device_by_mac(device->mac.x);
-              if (found_device != NULL) {
-                  // Update the device status to paired
-                  device->is_paired = true;
-                  device->can_be_paired = false;
-                  device->pair_msg = found_device->pair_msg;
-                  ESP_LOGI(TAG, "Device with MAC: " MACSTR " is now paired.", MAC2STR(device->mac.x));
-                  continue;  // Skip the removal process, as the device is now paired
-              }
+            // Check if the device slot is taken
+            if (device->_is_taken) {
+                
+                // Check if the device is currently not paired
+                if (!device->is_paired) {
+                    // Try to find the device by its MAC address
+                    device_t *found_device = gw_find_device_by_mac(device->mac.x);
+                    if (found_device != NULL) {
+                        // Update the device status to paired
+                        device->is_paired = true;
+                        device->can_be_paired = false;
+                        device->pair_msg = found_device->pair_msg;
+                        ESP_LOGI(TAG, "Device with MAC: " MACSTR " is now paired.", MAC2STR(device->mac.x));
+                        continue;  // Skip the removal process, as the device is now paired
+                    }
 
-              // Calculate the time since the last message was received
-              double time_diff = difftime(current_time, device->last_msg_time);
+                    // Calculate the time since the last message was received
+                    double time_diff = difftime(current_time, device->last_msg_time);
 
-              // If more than 1 hour (3600 seconds) has passed, remove the device
-              if (time_diff > 3600) {
-                  ESP_LOGI(TAG, "Removing unpaired device with MAC: " MACSTR, MAC2STR(device->mac.x));
+                    // If more than 1 hour (3600 seconds) has passed, remove the device
+                    if (time_diff > 3600) {
+                        ESP_LOGI(TAG, "Removing unpaired device with MAC: " MACSTR, MAC2STR(device->mac.x));
 
-                  // Mark the device slot as free
-                  device->_is_taken = false;
+                        // Mark the device slot as free
+                        device->_is_taken = false;
 
-                  continue;
-              }
+                        continue;
+                    }
 
-              // check if device can be still paired
-              device->can_be_paired = ((strncmp(device->last_msg, GW_PAIR_HEADER, strlen(GW_PAIR_HEADER))==0) 
-                && ((time(NULL) - device->last_msg_time) < GW_PAIR_MAX_TIME_S));
-        
-          }
-      }
+                    // Check if device can still be paired
+                    device->can_be_paired = ((strncmp(device->last_msg, GW_PAIR_HEADER, strlen(GW_PAIR_HEADER)) == 0) 
+                        && ((time(NULL) - device->last_msg_time) < GW_PAIR_MAX_TIME_S));
+                } else {
+                    // If the device is paired, check if it's still paired
+                    device_t *found_device = gw_find_device_by_mac(device->mac.x);
+                    if (found_device == NULL) {
+                        // If the device is not found, update status to unpaired
+                        device->is_paired = false;
+                        device->can_be_paired = false;
+                        device->pair_msg = NULL;
+                        ESP_LOGI(TAG, "Device with MAC: " MACSTR " has been unpaired.", MAC2STR(device->mac.x));
+                    }
+                }
+            }
+        }
 
-      xSemaphoreGive(device_list_mutex);  // Release the mutex after the operation
-  }
+        xSemaphoreGive(device_list_mutex);  // Release the mutex after the operation
+    }
 }
 
 

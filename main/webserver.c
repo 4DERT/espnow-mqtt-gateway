@@ -110,8 +110,8 @@ esp_err_t get_request(httpd_req_t *req, char *out_buf, size_t out_buf_size) {
   return ESP_OK;
 }
 
-esp_err_t pair_post_handler(httpd_req_t *req) {
-  ESP_LOGI(TAG, "pair_post_handler");
+esp_err_t handle_pair_unpair_request(httpd_req_t *req, void (*action)(mac_t*)) {
+  ESP_LOGI(TAG, "handle_post_request");
 
   const int POST_BUF_SIZE = 200;
 
@@ -123,8 +123,8 @@ esp_err_t pair_post_handler(httpd_req_t *req) {
   if (get_request(req, buf, sizeof(buf)) != ESP_OK) {
     return ESP_FAIL;
   }
-  char temp_buf[32];
 
+  char temp_buf[32];
   printf("buf %s\n", buf);
 
   if (httpd_query_key_value(buf, "mac", temp_buf, sizeof(temp_buf)) == ESP_OK) {
@@ -132,7 +132,7 @@ esp_err_t pair_post_handler(httpd_req_t *req) {
     if (sscanf(temp_buf, "%2hhx%%3A%2hhx%%3A%2hhx%%3A%2hhx%%3A%2hhx%%3A%2hhx",
                &mac.x[0], &mac.x[1], &mac.x[2], &mac.x[3], &mac.x[4],
                &mac.x[5]) == 6) {
-      gw_pair(&mac);
+      action(&mac);
     }
   }
 
@@ -143,13 +143,27 @@ esp_err_t pair_post_handler(httpd_req_t *req) {
   return ESP_OK;
 }
 
+esp_err_t pair_post_handler(httpd_req_t *req) {
+  return handle_pair_unpair_request(req, gw_pair);
+}
+
+esp_err_t unpair_post_handler(httpd_req_t *req) {
+  return handle_pair_unpair_request(req, gw_unpair);
+}
+
 static httpd_uri_t pair_post_uri = {.uri = "/pair",
                                     .method = HTTP_POST,
                                     .handler = pair_post_handler,
                                     .user_ctx = NULL};
 
+static httpd_uri_t unpair_post_uri = {.uri = "/unpair",
+                                      .method = HTTP_POST,
+                                      .handler = unpair_post_handler,
+                                      .user_ctx = NULL};
+
 httpd_handle_t webserver_start(void) {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+  config.max_uri_handlers = 10;
   httpd_handle_t server = NULL;
   if (httpd_start(&server, &config) == ESP_OK) {
     httpd_register_uri_handler(server, &favicon);
@@ -161,6 +175,7 @@ httpd_handle_t webserver_start(void) {
     httpd_register_uri_handler(server, &settings_page_json_get);
     httpd_register_uri_handler(server, &device_list_uri);
     httpd_register_uri_handler(server, &pair_post_uri);
+    httpd_register_uri_handler(server, &unpair_post_uri);
     ESP_LOGI(TAG, "ESP32 Web Server started");
   } else {
     ESP_LOGE(TAG, "ESP32 Web Server not started - ERROR");

@@ -12,9 +12,6 @@
 static const char* TAG = "gw_list";
 
 static device_t device_list[GW_DEVICE_LIST_SIZE];
-static int device_list_idx;
-
-static void recalculate_idx();
 
 const device_t* gw_get_device_list() {
   return device_list;
@@ -31,7 +28,9 @@ int gw_get_num_of_paired_devices() {
 }
 
 device_t* gw_find_device_by_mac(const uint8_t mac[]) {
-  for (int i = 0; i <= device_list_idx; i++) {
+  for (int i = 0; i < GW_DEVICE_LIST_SIZE; i++) {
+    if(!device_list[i]._is_taken) continue;
+
     if (!memcmp(device_list[i].mac, mac, ESP_NOW_ETH_ALEN))
       return &device_list[i];
   }
@@ -40,7 +39,13 @@ device_t* gw_find_device_by_mac(const uint8_t mac[]) {
 }
 
 bool gw_add_device(device_t* device) {
-  if (device_list_idx == GW_DEVICE_LIST_SIZE) {
+  // find free slot
+  int slot = -1;
+  for(int i = 0; i<GW_DEVICE_LIST_SIZE; i++) {
+    if(!device_list[i]._is_taken) slot = i;
+  }
+
+  if(slot == -1) {
     ESP_LOGW(TAG, "device list is full");
     return false;
   }
@@ -50,13 +55,24 @@ bool gw_add_device(device_t* device) {
     return false;
   }
 
-  memcpy(&device_list[device_list_idx], device, sizeof(device_t));
-  device_list_idx++;
+  memcpy(&device_list[slot], device, sizeof(device_t));
 
   // save to flash
   gw_save_device_list_to_flash();
 
   return true;
+}
+
+bool gw_remove_device(mac_t* mac) {
+  device_t* device = gw_find_device_by_mac(mac->x);
+
+  if (device != NULL) {
+    device->_is_taken = false;
+    gw_save_device_list_to_flash();
+    return true; 
+  }
+
+  return false;
 }
 
 void gw_update_pair_message(const uint8_t mac[], const char* new_pair_msg) {
@@ -97,20 +113,4 @@ void gw_load_device_list_from_flash() {
   }
 
   fclose(file);
-
-  recalculate_idx();
-}
-
-static void recalculate_idx() {
-  int i;
-  uint8_t empty_mac[ESP_NOW_ETH_ALEN] = {0};
-
-  for (i = 0; i < GW_DEVICE_LIST_SIZE; i++) {
-    if (memcmp(device_list[i].mac, empty_mac, ESP_NOW_ETH_ALEN) == 0) {
-      device_list_idx = i;
-      return;
-    }
-  }
-
-  device_list_idx = GW_DEVICE_LIST_SIZE;
 }

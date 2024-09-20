@@ -322,6 +322,18 @@ void gw_pair(mac_t* mac) {
   free(topic);
 }
 
+void gw_unpair(mac_t* mac) {
+  // char* topic = NULL;
+  // asprintf(&topic, GW_TOPIC_CMD, MAC2STR(mac->x));
+  // unsubscribe topic
+
+  gw_remove_device(mac);
+
+  dic_update();
+  gw_publish_paired_devices();
+  gw_publish_pending_pairing_devices();
+}
+
 void gw_mqtt_parser(const char* topic, int topic_len, const char* data, int data_len) {
   ESP_LOGD(TAG, "gw_mqtt_parser");
 

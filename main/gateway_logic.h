@@ -47,5 +47,6 @@ void gw_subscribe_devices();
 void gw_publish_paired_devices();
 void gw_publish_pending_pairing_devices();
 void gw_pair(mac_t* mac);
+void gw_unpair(mac_t* mac);
 
 #endif //GATEWAY_LOGIC_H_
