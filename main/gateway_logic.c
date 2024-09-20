@@ -305,7 +305,6 @@ void gw_pair(mac_t* mac) {
 
   device_t device;
   memcpy(device.mac, mac->x, ESP_NOW_ETH_ALEN);
-  device.is_online = true;
 
   if(gw_get_pair_msg_from_last_msg(mac->x, device.pair_msg)) {
     gw_add_device(&device);
@@ -363,7 +362,6 @@ void gw_mqtt_parser(const char* topic, int topic_len, const char* data, int data
   ESP_LOGI(TAG, "data sent - status: %d", res);
 
   if (res == ESP_NOW_SEND_FAIL) {
-    device->is_online = false;
     char* topic = NULL;
     asprintf(&topic, GW_TOPIC_STATUS, MAC2STR(mac));
     mqtt_publish(topic, "offline", 0, 0, 0);
@@ -384,7 +382,7 @@ void gw_send_to(const device_t* device, const char* msg, QueueHandle_t* ack_queu
 }
 
 void gw_subscribe_devices() {
-  int num_of_devices = gw_get_device_list_idx();
+  int num_of_devices = gw_get_num_of_paired_devices();
   if (num_of_devices == 0)
     return;
 
@@ -413,9 +411,9 @@ void gw_subscribe_devices() {
   mqtt_subscribe_multiple_no_prefix(topic_list, num_of_devices);
 
   // send "online"
-  for (int i = 0; i < num_of_devices; i++) {
-    device_t* device = gw_find_device_by_mac(device_list[i].mac);
-    device->is_online = true;
+  for (int i = 0; i < GW_DEVICE_LIST_SIZE; i++) {
+    if(!device_list[i]._is_taken) continue;
+
     char* topic = NULL;
     asprintf(&topic, GW_TOPIC_AVAILABILITY, MAC2STR(device_list[i].mac));
     mqtt_publish(topic, GW_AVAILABILITY_ONLINE, 0, 0, 1);
@@ -433,7 +431,9 @@ void gw_publish_paired_devices() {
   const device_t* devices = gw_get_device_list();
 
   cJSON *root = cJSON_CreateArray();
-  for (int i = 0; i < gw_get_device_list_idx(); i++) {
+  for (int i = 0; i < GW_DEVICE_LIST_SIZE; i++) {
+      if(!devices[i]._is_taken) continue;
+
       cJSON *device = cJSON_CreateObject();
 
       char mac_str[18];

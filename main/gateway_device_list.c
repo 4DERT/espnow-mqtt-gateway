@@ -20,8 +20,14 @@ const device_t* gw_get_device_list() {
   return device_list;
 }
 
-int gw_get_device_list_idx() {
-  return device_list_idx;
+int gw_get_num_of_paired_devices() {
+  int cnt = 0;
+
+  for(size_t i = 0; i< GW_DEVICE_LIST_SIZE; i++) {
+    if(device_list[i]._is_taken) cnt++;
+  }
+
+  return cnt;
 }
 
 device_t* gw_find_device_by_mac(const uint8_t mac[]) {
@@ -93,10 +99,6 @@ void gw_load_device_list_from_flash() {
   fclose(file);
 
   recalculate_idx();
-
-  for (int i = 0; i < device_list_idx; i++) {
-    device_list[device_list_idx].is_online = false;
-  }
 }
 
 static void recalculate_idx() {

@@ -126,7 +126,9 @@ dic_device_t make_dic_device(espnow_event_receive_cb_t *data) {
 void init_device_list() {
   const device_t *paired_devices = gw_get_device_list();
 
-  for (int i = 0; i < gw_get_device_list_idx(); i++) {
+  for (int i = 0; i < GW_DEVICE_LIST_SIZE; i++) {
+    if(!paired_devices[i]._is_taken) continue;
+    
     // init device
     dic_device_t device = {0};
     device.is_paired = true;

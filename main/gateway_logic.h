@@ -26,13 +26,18 @@
 #define GW_PAIR_MAX_TIME_S 30
 #define GW_GATEWAY_PENDING_PAIRING_TOPIC "pending_pairing"
 #define GW_GATEWAY_ACCEPT_PAIR_TOPIC "accept_pair"
+#define GW_USER_NAME_SIZE 16
 
 typedef struct mac_t { uint8_t x[ESP_NOW_ETH_ALEN]; } mac_t;
 
 typedef struct device_t {
     uint8_t mac[ESP_NOW_ETH_ALEN];
-    bool is_online;
     char pair_msg[ESP_NOW_MAX_DATA_LEN];
+    char user_name[GW_USER_NAME_SIZE];
+
+    // private
+    // A field indicating whether the slot in array is occupied
+    bool _is_taken;
 } device_t;
 
 void gw_espnow_broadcast_parser(espnow_event_receive_cb_t* packet);
