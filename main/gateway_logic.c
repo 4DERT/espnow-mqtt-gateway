@@ -21,7 +21,7 @@ static void gw_send_to(const device_t* device, const char* msg, QueueHandle_t* a
 static bool gw_get_pair_msg_from_last_msg(const uint8_t mac[], char* out);
 
 void extract_type_and_cfg_from_pair_msg(const char *msg, cJSON *json) {
-    const char *prefix = GW_PAIR_HEADER;  // zakładamy, że to jest "SHPR:"
+    const char *prefix = GW_PAIR_HEADER; 
     size_t prefix_len = strlen(prefix);
 
     if (strncmp(msg, prefix, prefix_len) == 0) {
@@ -47,8 +47,6 @@ void extract_type_and_cfg_from_pair_msg(const char *msg, cJSON *json) {
         } else {
             ESP_LOGE(TAG, "Failed to parse pairing message: %s", json_str);
         }
-    } else {
-        ESP_LOGE(TAG, "Message does not start with the expected prefix: %s", msg);
     }
 }
 
