@@ -18,7 +18,9 @@ settings_param_t params[] = {
     {"pass", "MQTT Password", TYPE_STRING, false, true, MAX_SETTINGS_LENGTH,
      current_settings.mqtt_password},
     {"topic", "MQTT Topic", TYPE_STRING, true, false, MAX_SETTINGS_LENGTH,
-     current_settings.mqtt_topic}};
+     current_settings.mqtt_topic},
+    {"pair", "Do not require pairing", TYPE_BOOL, false, false, sizeof(bool),
+     &current_settings.is_pair_not_required}};
 
 size_t settings_get_params_count(void) {
   return sizeof(params) / sizeof(params[0]);

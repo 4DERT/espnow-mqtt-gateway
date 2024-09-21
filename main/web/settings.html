@@ -64,9 +64,9 @@
                                 input.type = 'checkbox';
                                 input.id = setting.name;
                                 input.name = setting.name;
-                                input.checked = setting.value === "true";
-                                div.appendChild(label);
+                                input.checked = setting.value === true;
                                 div.appendChild(input);
+                                div.appendChild(label);
                                 form.appendChild(div);
                                 return;
                         }

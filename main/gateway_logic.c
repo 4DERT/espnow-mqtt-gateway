@@ -10,14 +10,11 @@
 #include "mqtt.h"
 #include "string.h"
 #include "cJSON.h"
-
-// If it is 0, the gateway does not reject messages from unpaired devices. 
-// Use with caution, preferably only in a development environment.
-#define PAIR_IS_REQUIRED 0
+#include "settings.h"
 
 static const char* TAG = "gateway";
 
-static void gw_send_to(const device_t* device, const char* msg, QueueHandle_t* ack_queue);
+static void gw_send_to(const uint8_t* mac, const char* msg, QueueHandle_t* ack_queue);
 static bool gw_get_pair_msg_from_last_msg(const uint8_t mac[], char* out);
 
 void extract_type_and_cfg_from_pair_msg(const char *msg, cJSON *json) {
@@ -122,7 +119,7 @@ void gw_on_pair_request(device_t* device) {
     free(new_pair_msg);
 
     // send accept pair message
-    gw_send_to(device, GW_ACCEPT_PAIR, NULL);
+    gw_send_to(device->mac, GW_ACCEPT_PAIR, NULL);
     return;
   }
 
@@ -184,23 +181,16 @@ void gw_espnow_parse_no_type(espnow_event_receive_cb_t* data) {
 void gw_espnow_message_parser(espnow_event_receive_cb_t* data) {
   ESP_LOGD(TAG, "gw_espnow_message_parser");
 
-#if PAIR_IS_REQUIRED == 1
-  // check if device is paired
-  device_t* device = gw_find_device_by_mac(data->esp_now_info.src_addr);
-  if (device == NULL) {
-    ESP_LOGE(TAG, "Device (" MACSTR ") not paired", MAC2STR(data->esp_now_info.src_addr));
-    return;
-  }
+  bool is_pair_not_required = settings_get().is_pair_not_required;
 
-  // Send online
-  if (device->is_online == false) {
-    device->is_online = true;
-    char* topic = NULL;
-    asprintf(&topic, GW_TOPIC_STATUS, MAC2STR(data->esp_now_info.src_addr));
-    mqtt_publish(topic, "online", 0, 0, 0);
-    free(topic);
+  if(!is_pair_not_required) {
+    // check if device is paired
+    device_t* device = gw_find_device_by_mac(data->esp_now_info.src_addr);
+    if (device == NULL) {
+      ESP_LOGE(TAG, "Device (" MACSTR ") not paired", MAC2STR(data->esp_now_info.src_addr));
+      return;
+    }
   }
-#endif
 
   // check if device is specifying a topic using !D: or !S:
   if(data->data[0] == GW_TOPIC_SPEC[0] && data->data[2] == GW_TOPIC_SPEC[2]) {
@@ -308,7 +298,7 @@ void gw_pair(mac_t* mac) {
     gw_add_device(&device);
 
     mqtt_subscribe(topic, 2);
-    gw_send_to(&device, GW_ACCEPT_PAIR, NULL);
+    gw_send_to(device.mac, GW_ACCEPT_PAIR, NULL);
 
     dic_update();
     gw_publish_paired_devices();
@@ -356,17 +346,19 @@ void gw_mqtt_parser(const char* topic, int topic_len, const char* data, int data
     return;
   }
 
-  device_t* device = gw_find_device_by_mac(mac);
-  if (device == NULL) {
-    ESP_LOGE(TAG, "Device with MAC " MACSTR " not found", MAC2STR(mac));
-    return;
+  if(!settings_get().is_pair_not_required) {
+    device_t* device = gw_find_device_by_mac(mac);
+    if (device == NULL) {
+      ESP_LOGE(TAG, "Device with MAC " MACSTR " not found", MAC2STR(mac));
+      return;
+    }
   }
 
   QueueHandle_t ack = esp_now_create_send_ack_queue();
 
   char* msg = NULL;
   asprintf(&msg, "%.*s", data_len, data);
-  gw_send_to(device, msg, &ack);
+  gw_send_to(mac, msg, &ack);
   free(msg);
 
   esp_now_send_status_t res;
@@ -381,9 +373,9 @@ void gw_mqtt_parser(const char* topic, int topic_len, const char* data, int data
   }
 }
 
-void gw_send_to(const device_t* device, const char* msg, QueueHandle_t* ack_queue) {
+void gw_send_to(const uint8_t* mac, const char* msg, QueueHandle_t* ack_queue) {
   esp_now_send_t data;
-  memcpy(data.dest_mac, device->mac, ESP_NOW_ETH_ALEN);
+  memcpy(data.dest_mac, mac, ESP_NOW_ETH_ALEN);
   sprintf(data.data, msg);
   if (ack_queue != NULL)
     data.ack_queue = ack_queue;
@@ -394,39 +386,54 @@ void gw_send_to(const device_t* device, const char* msg, QueueHandle_t* ack_queu
 }
 
 void gw_subscribe_devices() {
+  bool is_pair_not_required = settings_get().is_pair_not_required;
+
+  if(is_pair_not_required) {
+    mqtt_subscribe(GW_TOPIC_CMD_ALL, 0);
+  }
+
   int num_of_devices = gw_get_num_of_paired_devices();
   if (num_of_devices == 0)
     return;
 
-  esp_mqtt_topic_t* topic_list = calloc(num_of_devices, sizeof(esp_mqtt_topic_t));
-  int topic_list_idx = 0;
-  if (topic_list == NULL) {
-    ESP_LOGE(TAG, "Failed to allocate memory\n");
-    return;
-  }
-
   const device_t* device_list = gw_get_device_list();
 
-  const char* topic_prefix = mqtt_get_topic_prefix();
-  for (int i = 0; i < GW_DEVICE_LIST_SIZE; i++) {
-    if(!device_list[i]._is_taken) continue;
-
-    int needed_size = snprintf(NULL, 0, "%s" GW_TOPIC_CMD, topic_prefix, MAC2STR(device_list[i].mac)) + 1;  // +1 for null terminator
-    char* dynamic_topic = malloc(needed_size);
-    if (dynamic_topic == NULL) {
-      ESP_LOGE(TAG, "Failed to allocate memory for topic string\n");
-      continue;
+  // subscribe only paired devices
+  if(!is_pair_not_required) {
+    esp_mqtt_topic_t* topic_list = calloc(num_of_devices, sizeof(esp_mqtt_topic_t));
+    int topic_list_idx = 0;
+    if (topic_list == NULL) {
+      ESP_LOGE(TAG, "Failed to allocate memory\n");
+      return;
     }
-    snprintf(dynamic_topic, needed_size, "%s" GW_TOPIC_CMD, topic_prefix, MAC2STR(device_list[i].mac));
-    topic_list[topic_list_idx].filter = dynamic_topic;  // Assign dynamically allocated topic
-    topic_list[topic_list_idx].qos = 0;
-    ++topic_list_idx;
+
+    const char* topic_prefix = mqtt_get_topic_prefix();
+    for (int i = 0; i < GW_DEVICE_LIST_SIZE; i++) {
+      if(!device_list[i]._is_taken) continue;
+
+      int needed_size = snprintf(NULL, 0, "%s" GW_TOPIC_CMD, topic_prefix, MAC2STR(device_list[i].mac)) + 1;  // +1 for null terminator
+      char* dynamic_topic = malloc(needed_size);
+      if (dynamic_topic == NULL) {
+        ESP_LOGE(TAG, "Failed to allocate memory for topic string\n");
+        continue;
+      }
+      snprintf(dynamic_topic, needed_size, "%s" GW_TOPIC_CMD, topic_prefix, MAC2STR(device_list[i].mac));
+      topic_list[topic_list_idx].filter = dynamic_topic;  // Assign dynamically allocated topic
+      topic_list[topic_list_idx].qos = 0;
+      ++topic_list_idx;
+    }
+
+    // subscribe topics
+    mqtt_subscribe_multiple_no_prefix(topic_list, num_of_devices);
+
+    // Free memory
+    for (int i = 0; i < num_of_devices; i++) {
+      free((void*)topic_list[i].filter);  // Free each dynamically allocated topic
+    }
+    free(topic_list);
   }
 
-  // subscribe topics
-  mqtt_subscribe_multiple_no_prefix(topic_list, num_of_devices);
-
-  // send "online"
+  // send "online" for subscribed devices
   for (int i = 0; i < GW_DEVICE_LIST_SIZE; i++) {
     if(!device_list[i]._is_taken) continue;
 
@@ -435,12 +442,6 @@ void gw_subscribe_devices() {
     mqtt_publish(topic, GW_AVAILABILITY_ONLINE, 0, 0, 1);
     free(topic);
   }
-
-  // Free memory
-  for (int i = 0; i < num_of_devices; i++) {
-    free((void*)topic_list[i].filter);  // Free each dynamically allocated topic
-  }
-  free(topic_list);
 }
 
 void gw_publish_paired_devices() {

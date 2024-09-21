@@ -16,6 +16,7 @@
 #define GW_DATA_CHAR        'D'
 #define GW_TOPIC_PREFIX     "device/"
 #define GW_TOPIC_CMD        GW_TOPIC_PREFIX GW_MACSTR "/cmd"
+#define GW_TOPIC_CMD_ALL    GW_TOPIC_PREFIX "+/cmd"
 #define GW_TOPIC_STATUS     GW_TOPIC_PREFIX GW_MACSTR "/status"
 #define GW_TOPIC_AVAILABILITY     GW_TOPIC_PREFIX GW_MACSTR "/availability"
 #define GW_TOPIC_DATA       GW_TOPIC_PREFIX GW_MACSTR "/data"

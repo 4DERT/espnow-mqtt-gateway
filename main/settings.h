@@ -24,6 +24,7 @@ typedef struct {
   char mqtt_username[MAX_SETTINGS_LENGTH];
   char mqtt_password[MAX_SETTINGS_LENGTH];
   char mqtt_topic[MAX_SETTINGS_LENGTH];
+  bool is_pair_not_required;
 } settings_t;
 
 extern settings_param_t params[];
