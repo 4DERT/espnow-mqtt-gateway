@@ -74,6 +74,7 @@ void dic_update() {
                         device->is_paired = true;
                         device->can_be_paired = false;
                         device->pair_msg = found_device->pair_msg;
+                        device->user_name = found_device->user_name;
                         ESP_LOGI(TAG, "Device with MAC: " MACSTR " is now paired.", MAC2STR(device->mac.x));
                         continue;  // Skip the removal process, as the device is now paired
                     }
@@ -102,6 +103,7 @@ void dic_update() {
                         device->is_paired = false;
                         device->can_be_paired = false;
                         device->pair_msg = NULL;
+                        device->user_name = NULL;
                         ESP_LOGI(TAG, "Device with MAC: " MACSTR " has been unpaired.", MAC2STR(device->mac.x));
                     }
                 }
@@ -126,6 +128,7 @@ dic_device_t make_dic_device(espnow_event_receive_cb_t *data) {
   if(device != NULL) {
     result.is_paired = true;
     result.pair_msg = device->pair_msg;
+    result.user_name = device->user_name;
   } else {
     // check if device can be paired
     result.can_be_paired = (strncmp(data->data, GW_PAIR_HEADER, strlen(GW_PAIR_HEADER)) == 0);
@@ -148,6 +151,7 @@ void init_device_list() {
     device._is_taken = true;
     memcpy(&device.mac, &paired_devices[i].mac, ESP_NOW_ETH_ALEN);
     device.pair_msg = paired_devices[i].pair_msg;
+    device.user_name = paired_devices[i].user_name;
 
     // add to list
     int idx = find_slot();

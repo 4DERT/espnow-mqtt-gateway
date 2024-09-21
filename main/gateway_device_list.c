@@ -56,6 +56,8 @@ bool gw_add_device(device_t* device) {
   }
 
   memcpy(&device_list[slot], device, sizeof(device_t));
+  memset(device_list[slot].user_name, 0, GW_USER_NAME_SIZE);
+  memset(device_list[slot].pair_msg, 0, ESP_NOW_MAX_DATA_LEN);
 
   // save to flash
   gw_save_device_list_to_flash();
@@ -68,6 +70,18 @@ bool gw_remove_device(mac_t* mac) {
 
   if (device != NULL) {
     device->_is_taken = false;
+    gw_save_device_list_to_flash();
+    return true; 
+  }
+
+  return false;
+}
+
+bool gw_rename_device(mac_t* mac, const char* name) {
+  device_t* device = gw_find_device_by_mac(mac->x);
+
+  if (device != NULL) {
+    strncpy(device->user_name, name, GW_USER_NAME_SIZE);
     gw_save_device_list_to_flash();
     return true; 
   }

@@ -89,7 +89,7 @@ static httpd_uri_t device_list_uri = {.uri = "/api/devices",
                                       .handler = device_list_get_handler,
                                       .user_ctx = NULL};
 
-/* /pair POST */
+/* /pair /unpair POST */
 
 esp_err_t get_request(httpd_req_t *req, char *out_buf, size_t out_buf_size) {
   int ret, remaining = req->content_len;
@@ -125,7 +125,6 @@ esp_err_t handle_pair_unpair_request(httpd_req_t *req, void (*action)(mac_t*)) {
   }
 
   char temp_buf[32];
-  printf("buf %s\n", buf);
 
   if (httpd_query_key_value(buf, "mac", temp_buf, sizeof(temp_buf)) == ESP_OK) {
     mac_t mac;
@@ -161,6 +160,92 @@ static httpd_uri_t unpair_post_uri = {.uri = "/unpair",
                                       .handler = unpair_post_handler,
                                       .user_ctx = NULL};
 
+/* /rename POST */
+
+/*DUPLICATE*/
+static int hex2int(char ch) {
+  if (ch >= '0' && ch <= '9') {
+    return ch - '0';
+  } else if (ch >= 'A' && ch <= 'F') {
+    return ch - 'A' + 10;
+  } else if (ch >= 'a' && ch <= 'f') {
+    return ch - 'a' + 10;
+  }
+  return -1;
+}
+
+static void url_decode(char *str) {
+  char *pstr = str;
+  char *pdec = str;
+  while (*pstr) {
+    if (*pstr == '%' && isxdigit((unsigned char)pstr[1]) &&
+        isxdigit((unsigned char)pstr[2])) {
+      *pdec = (char)(hex2int(pstr[1]) * 16 + hex2int(pstr[2]));
+      pstr += 3;
+    } else if (*pstr == '+') {
+      *pdec = ' ';
+      pstr++;
+    } else {
+      *pdec = *pstr;
+      pstr++;
+    }
+
+    pdec++;
+  }
+  *pdec = '\0';
+}
+
+esp_err_t handle_rename_request(httpd_req_t *req) {
+  ESP_LOGI(TAG, "handle_post_request");
+
+  const int POST_BUF_SIZE = 200;
+
+  if (req->content_len >= POST_BUF_SIZE) {
+    return ESP_FAIL;
+  }
+
+  char buf[POST_BUF_SIZE];
+  if (get_request(req, buf, sizeof(buf)) != ESP_OK) {
+    return ESP_FAIL;
+  }
+
+  url_decode(buf);
+
+  // store mac and new name
+  char new_name[32];
+  mac_t mac;
+
+  // parse mac
+  if (httpd_query_key_value(buf, "mac", new_name, sizeof(new_name)) == ESP_OK) {
+    if (sscanf(new_name, "%2hhx:%2hhx:%2hhx:%2hhx:%2hhx:%2hhx",
+               &mac.x[0], &mac.x[1], &mac.x[2], &mac.x[3], &mac.x[4],
+               &mac.x[5]) != 6) {
+      return ESP_FAIL;
+    }
+  }
+  
+  // parse new name
+  if (httpd_query_key_value(buf, "name", new_name, sizeof(new_name)) == ESP_OK) {
+    if(strlen(new_name) > GW_USER_NAME_SIZE){
+      return ESP_FAIL;
+    }
+  }
+
+  gw_rename(&mac, new_name);
+
+  // redirect to home page
+  httpd_resp_set_status(req, "302 Found");
+  httpd_resp_set_hdr(req, "Location", "/");
+  httpd_resp_sendstr(req, "Redirecting to the main page...");
+
+  return ESP_OK;
+}
+
+static httpd_uri_t rename_post_uri = {.uri = "/rename",
+                                      .method = HTTP_POST,
+                                      .handler = handle_rename_request,
+                                      .user_ctx = NULL};
+
 httpd_handle_t webserver_start(void) {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.max_uri_handlers = 10;
@@ -176,6 +261,7 @@ httpd_handle_t webserver_start(void) {
     httpd_register_uri_handler(server, &device_list_uri);
     httpd_register_uri_handler(server, &pair_post_uri);
     httpd_register_uri_handler(server, &unpair_post_uri);
+    httpd_register_uri_handler(server, &rename_post_uri);
     ESP_LOGI(TAG, "ESP32 Web Server started");
   } else {
     ESP_LOGE(TAG, "ESP32 Web Server not started - ERROR");

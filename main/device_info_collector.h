@@ -16,7 +16,7 @@ typedef struct {
   bool is_paired;
   int rssi;
   time_t last_msg_time;
-  char user_name[16];
+  const char* user_name;
   char last_msg[ESP_NOW_MAX_DATA_LEN];
   const char* pair_msg;
   bool can_be_paired;
