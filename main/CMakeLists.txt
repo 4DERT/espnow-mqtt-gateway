@@ -11,6 +11,7 @@ idf_component_register(SRCS
                        "settings_page.c"
                        "settings.c"
                        "device_info_collector.c"
+                       "url_utils.c"
                        INCLUDE_DIRS "."
                        EMBED_FILES
                        "web/favicon.ico"
