@@ -399,6 +399,7 @@ void gw_subscribe_devices() {
     return;
 
   esp_mqtt_topic_t* topic_list = calloc(num_of_devices, sizeof(esp_mqtt_topic_t));
+  int topic_list_idx = 0;
   if (topic_list == NULL) {
     ESP_LOGE(TAG, "Failed to allocate memory\n");
     return;
@@ -407,7 +408,9 @@ void gw_subscribe_devices() {
   const device_t* device_list = gw_get_device_list();
 
   const char* topic_prefix = mqtt_get_topic_prefix();
-  for (int i = 0; i < num_of_devices; i++) {
+  for (int i = 0; i < GW_DEVICE_LIST_SIZE; i++) {
+    if(!device_list[i]._is_taken) continue;
+
     int needed_size = snprintf(NULL, 0, "%s" GW_TOPIC_CMD, topic_prefix, MAC2STR(device_list[i].mac)) + 1;  // +1 for null terminator
     char* dynamic_topic = malloc(needed_size);
     if (dynamic_topic == NULL) {
@@ -415,8 +418,9 @@ void gw_subscribe_devices() {
       continue;
     }
     snprintf(dynamic_topic, needed_size, "%s" GW_TOPIC_CMD, topic_prefix, MAC2STR(device_list[i].mac));
-    topic_list[i].filter = dynamic_topic;  // Assign dynamically allocated topic
-    topic_list[i].qos = 0;
+    topic_list[topic_list_idx].filter = dynamic_topic;  // Assign dynamically allocated topic
+    topic_list[topic_list_idx].qos = 0;
+    ++topic_list_idx;
   }
 
   // subscribe topics
