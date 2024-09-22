@@ -183,13 +183,23 @@ void gw_espnow_message_parser(espnow_event_receive_cb_t* data) {
 
   bool is_pair_not_required = settings_get().is_pair_not_required;
 
-  if(!is_pair_not_required) {
-    // check if device is paired
-    device_t* device = gw_find_device_by_mac(data->esp_now_info.src_addr);
-    if (device == NULL) {
+  bool is_found;
+  dic_device_t device = dic_get_device((mac_t*)data->esp_now_info.src_addr, &is_found);
+
+  if(!is_pair_not_required) { // pair is required
+    if (is_found && !device.is_paired) {
       ESP_LOGE(TAG, "Device (" MACSTR ") not paired", MAC2STR(data->esp_now_info.src_addr));
       return;
     }
+  }
+  
+  // Send availability as 'online' if the previous state is different and only for paired devices
+  if (is_found && device.is_paired && device.availabilty != DIC_AVAILABILITY_ONLINE) {
+    dic_mark_as_online(&device.mac);
+    char* topic = NULL;
+    asprintf(&topic, GW_TOPIC_AVAILABILITY, MAC2STR(device.mac.x));
+    mqtt_publish(topic, GW_AVAILABILITY_ONLINE, 0, 0, 1);
+    free(topic); 
   }
 
   // check if device is specifying a topic using !D: or !S:
@@ -346,8 +356,9 @@ void gw_mqtt_parser(const char* topic, int topic_len, const char* data, int data
     return;
   }
 
+  device_t* device = gw_find_device_by_mac(mac);
+  
   if(!settings_get().is_pair_not_required) {
-    device_t* device = gw_find_device_by_mac(mac);
     if (device == NULL) {
       ESP_LOGE(TAG, "Device with MAC " MACSTR " not found", MAC2STR(mac));
       return;
@@ -365,10 +376,12 @@ void gw_mqtt_parser(const char* topic, int topic_len, const char* data, int data
   xQueueReceive(ack, &res, portMAX_DELAY);
   ESP_LOGI(TAG, "data sent - status: %d", res);
 
-  if (res == ESP_NOW_SEND_FAIL) {
+  // send offline only if device is paired and send result is failed
+  if (res == ESP_NOW_SEND_FAIL && device != NULL) {
+    dic_mark_as_offline((mac_t*)mac);
     char* topic = NULL;
     asprintf(&topic, GW_TOPIC_AVAILABILITY, MAC2STR(mac));
-    mqtt_publish(topic, "offline", 0, 0, 1);
+    mqtt_publish(topic, GW_AVAILABILITY_OFFLINE, 0, 0, 1);
     free(topic);
   }
 }
@@ -431,16 +444,6 @@ void gw_subscribe_devices() {
       free((void*)topic_list[i].filter);  // Free each dynamically allocated topic
     }
     free(topic_list);
-  }
-
-  // send "online" for subscribed devices
-  for (int i = 0; i < GW_DEVICE_LIST_SIZE; i++) {
-    if(!device_list[i]._is_taken) continue;
-
-    char* topic = NULL;
-    asprintf(&topic, GW_TOPIC_AVAILABILITY, MAC2STR(device_list[i].mac));
-    mqtt_publish(topic, GW_AVAILABILITY_ONLINE, 0, 0, 1);
-    free(topic);
   }
 }
 

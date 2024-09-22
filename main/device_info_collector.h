@@ -11,6 +11,12 @@
 #define DIC_DEVICE_LIST_SIZE 64
 #define DIC_DEVICE_QUEUE_SIZE 3
 
+typedef enum {
+  DIC_AVAILABILITY_UNKNOWN,
+  DIC_AVAILABILITY_OFFLINE,
+  DIC_AVAILABILITY_ONLINE
+} dic_availability_e;
+
 typedef struct {
   mac_t mac;
   bool is_paired;
@@ -20,6 +26,7 @@ typedef struct {
   char last_msg[ESP_NOW_MAX_DATA_LEN];
   const char* pair_msg;
   bool can_be_paired;
+  dic_availability_e availabilty;
 
   // private
 
@@ -39,5 +46,11 @@ extern void dic_print_device_list();
 extern char *dic_create_device_list_json();
 
 extern void dic_update();
+
+extern void dic_mark_as_online(mac_t* mac);
+
+extern void dic_mark_as_offline(mac_t* mac);
+
+extern dic_device_t dic_get_device(mac_t* mac, bool* is_found);
 
 #endif // DEVICE_INFO_COLLECTOR_H_

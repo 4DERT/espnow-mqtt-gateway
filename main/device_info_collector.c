@@ -34,7 +34,9 @@ void analyze_data(dic_device_t *device) {
           memcmp(device_list[i].mac.x, device->mac.x, ESP_NOW_ETH_ALEN) == 0) {
         device_found = true;
         // update device in list
-        memcpy(&device_list[i], device, sizeof(dic_device_t));
+        device_list[i].rssi = device->rssi;
+        device_list[i].last_msg_time = device->last_msg_time;
+        strcpy(device_list[i].last_msg, device->last_msg);
         device_list[i]._is_taken = true;
         break;
       }
@@ -187,6 +189,24 @@ void dic_task(void *params) {
   }
 }
 
+void set_availability(mac_t* mac, dic_availability_e availability) {
+  if (xSemaphoreTake(device_list_mutex, portMAX_DELAY) == pdTRUE) {
+    
+    // find device
+    for (int i = 0; i < DIC_DEVICE_LIST_SIZE; i++) {
+      dic_device_t *device = &device_list[i];
+      if(!device->_is_taken) continue;
+      
+      if(memcmp(device->mac.x, mac->x, ESP_NOW_ETH_ALEN) == 0) {
+        device->availabilty = availability;
+        break;
+      }
+    }
+    
+    xSemaphoreGive(device_list_mutex);
+  }
+}
+
 // Public
 
 void dic_init() {
@@ -212,6 +232,39 @@ void dic_get_device_list(dic_device_t **out_array,
     *out_array = NULL;
     *out_mutex = NULL;
   }
+}
+
+void dic_mark_as_online(mac_t* mac) {
+  set_availability(mac, DIC_AVAILABILITY_ONLINE);
+}
+
+void dic_mark_as_offline(mac_t* mac){
+  set_availability(mac, DIC_AVAILABILITY_OFFLINE);
+}
+
+dic_device_t dic_get_device(mac_t* mac, bool* is_found){
+  dic_device_t found;
+  memset(&found, 0, sizeof(dic_device_t));
+  *is_found = false;
+
+  if (xSemaphoreTake(device_list_mutex, portMAX_DELAY) == pdTRUE) {
+    
+    // find device
+    for (int i = 0; i < DIC_DEVICE_LIST_SIZE; i++) {
+      dic_device_t *device = &device_list[i];
+      if(!device->_is_taken) continue;
+      
+      if(memcmp(device->mac.x, mac->x, ESP_NOW_ETH_ALEN) == 0) {
+        memcpy(&found, device, sizeof(dic_device_t));
+        *is_found = true;
+        break;
+      }
+    }
+
+    xSemaphoreGive(device_list_mutex);
+  }
+
+  return found;
 }
 
 void dic_print_device_list() {
@@ -258,6 +311,7 @@ char *dic_create_device_list_json() {
           cJSON_AddStringToObject(device, "pair_msg", "");
       }
       cJSON_AddStringToObject(device, "last_msg", device_list[i].last_msg);
+      cJSON_AddNumberToObject(device, "availability", device_list[i].availabilty);
 
       cJSON_AddItemToArray(root, device);
     }
