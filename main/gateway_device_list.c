@@ -57,7 +57,6 @@ bool gw_add_device(device_t* device) {
 
   memcpy(&device_list[slot], device, sizeof(device_t));
   memset(device_list[slot].user_name, 0, GW_USER_NAME_SIZE);
-  memset(device_list[slot].pair_msg, 0, ESP_NOW_MAX_DATA_LEN);
 
   // save to flash
   gw_save_device_list_to_flash();
