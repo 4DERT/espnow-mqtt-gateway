@@ -367,8 +367,8 @@ void gw_mqtt_parser(const char* topic, int topic_len, const char* data, int data
 
   if (res == ESP_NOW_SEND_FAIL) {
     char* topic = NULL;
-    asprintf(&topic, GW_TOPIC_STATUS, MAC2STR(mac));
-    mqtt_publish(topic, "offline", 0, 0, 0);
+    asprintf(&topic, GW_TOPIC_AVAILABILITY, MAC2STR(mac));
+    mqtt_publish(topic, "offline", 0, 0, 1);
     free(topic);
   }
 }
