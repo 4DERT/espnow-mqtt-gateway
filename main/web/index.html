@@ -170,8 +170,8 @@
             const name = document.createElement('div');
             name.classList.add('name');
             name.innerHTML = device.user_name
-                ? `${device.user_name}<div class="mac-address-light"> (${device.mac})</div>`
-                : `<div class="mac-address-bold">${device.mac}</div>`;
+                ? `<span class="user-name">${device.user_name}</span><span class="mac-address-light mac-address"> (${device.mac})</span>`
+                : `<div class="mac-address-bold mac-address">${device.mac}</div>`;
 
             const lastMessageTime = document.createElement('div');
             lastMessageTime.classList.add('last-message-time');
