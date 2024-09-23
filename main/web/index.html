@@ -159,6 +159,19 @@
             return card;
         }
 
+        function getAvailabilityString(availability) {
+            switch (availability) {
+                case 0:
+                    return "Unknown"
+                case 1:
+                    return "Offline"
+                case 2:
+                    return "Online"
+                default:
+                    return "-"
+            }
+        }
+
         function createCardHeader(device) {
             const cardHeader = document.createElement('div');
             cardHeader.classList.add('device-card-header');
@@ -173,14 +186,17 @@
                 ? `<span class="user-name">${device.user_name}</span><span class="mac-address-light mac-address"> (${device.mac})</span>`
                 : `<div class="mac-address-bold mac-address">${device.mac}</div>`;
 
-            const lastMessageTime = document.createElement('div');
-            lastMessageTime.classList.add('last-message-time');
-            lastMessageTime.textContent = device.last_msg_time
-                ? 'Last message ' + timeAgo(device.last_msg_time)
-                : '-';
+            const properties = document.createElement('div');
+            properties.classList.add('device-card-properties');
+            const msgTime = 'Last message ' + timeAgo(device.last_msg_time);
+            const availability = device.is_paired ? getAvailabilityString(device.availability) : "Not paired";
+            properties.textContent = availability;
+            if (device.last_msg_time) {
+                properties.textContent += ' • ' + msgTime;
+            }
 
             left.appendChild(name);
-            left.appendChild(lastMessageTime);
+            left.appendChild(properties);
 
             renderSignalBars(device.rssi, right);
 
