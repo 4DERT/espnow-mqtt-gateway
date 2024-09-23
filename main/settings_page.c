@@ -73,11 +73,13 @@ esp_err_t settings_post_handler(httpd_req_t *req) {
     }
   }
 
-  bool is_saved = settings_save_to_flash();
+  settings_save_to_flash();
 
-  httpd_resp_sendstr(req, is_saved
-                              ? "Settings updated successfully!"
-                              : "An error occurred while updating settings.");
+  httpd_resp_set_status(req, "302 Found");
+  httpd_resp_set_hdr(req, "Location", "/");
+  httpd_resp_sendstr(req, "Redirecting to the main page...");
+
+  vTaskDelay(pdMS_TO_TICKS(100));
 
   esp_restart();
   return ESP_OK;
