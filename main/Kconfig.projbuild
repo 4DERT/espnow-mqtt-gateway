@@ -1,0 +1,20 @@
+menu "Application configuration"
+
+config USE_ESPNOW_CUSTOM_MAC
+    bool "Set custom ESPNOW MAC address"
+    default n
+    help
+      Enable this option if you want to set a custom ESPNOW MAC address.
+
+if USE_ESPNOW_CUSTOM_MAC
+
+config ESPNOW_MAC_ADDR
+    string "Custom MAC address"
+    default "00:00:00:00:00:00"
+    help
+      Enter the custom MAC address in format XX:XX:XX:XX:XX:XX.
+      The address must be valid and unique in the network.
+
+endif
+
+endmenu

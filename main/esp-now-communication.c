@@ -49,6 +49,14 @@ void esp_now_communication_init() {
   esp_wifi_init(&cfg);
   esp_wifi_set_storage(WIFI_STORAGE_RAM);
   esp_wifi_set_mode(WIFI_MODE_STA);
+#if CONFIG_USE_ESPNOW_CUSTOM_MAC
+  uint8_t custom_mac[6];
+    sscanf(CONFIG_ESPNOW_MAC_ADDR, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+           &custom_mac[0], &custom_mac[1], &custom_mac[2],
+           &custom_mac[3], &custom_mac[4], &custom_mac[5]);
+
+  esp_wifi_set_mac(WIFI_IF_STA, custom_mac);
+#endif
   esp_wifi_start();
   esp_wifi_set_channel(ESP_NOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
 
