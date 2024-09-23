@@ -11,7 +11,7 @@ static const char *TAG = "filesystem";
 
 void flash_filesystem_init() {
   esp_vfs_spiffs_conf_t config = {
-      .base_path = "/storage",
+      .base_path = FLASH_BASE_PATH,
       .partition_label = NULL,
       .max_files = 2,
       .format_if_mount_failed = true};

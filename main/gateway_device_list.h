@@ -2,9 +2,11 @@
 #define GATEWAY_DEVICE_LIST_H_
 
 #include "gateway_logic.h"
+#include "flash_filesystem.h"
+#include "sdkconfig.h"
 
-#define GW_DEVICE_LIST_SIZE 32
-#define GW_NOT_FOUND -1
+#define GW_DEVICE_LIST_SIZE CONFIG_GW_DEVICE_LIST_SIZE
+#define GW_DEVICE_LIST_FILE_PATH CONFIG_GW_DEVICE_LIST_FILE_PATH
 
 const device_t* gw_get_device_list();
 int gw_get_num_of_paired_devices();

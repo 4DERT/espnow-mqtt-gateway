@@ -1,20 +1,121 @@
 menu "Application configuration"
 
-config USE_ESPNOW_CUSTOM_MAC
-    bool "Set custom ESPNOW MAC address"
-    default n
-    help
-      Enable this option if you want to set a custom ESPNOW MAC address.
+  menu "ESP NOW"
 
-if USE_ESPNOW_CUSTOM_MAC
+    config ESP_NOW_USE_CUSTOM_MAC
+      bool "Set custom ESPNOW MAC address"
+      default n
+      help
+        Enable this option if you want to set a custom ESPNOW MAC address.
 
-config ESPNOW_MAC_ADDR
-    string "Custom MAC address"
-    default "00:00:00:00:00:00"
-    help
-      Enter the custom MAC address in format XX:XX:XX:XX:XX:XX.
-      The address must be valid and unique in the network.
+    if ESP_NOW_USE_CUSTOM_MAC
 
-endif
+    config ESP_NOW_MAC_ADDR
+      string "Custom MAC address"
+      default "00:00:00:00:00:00"
+      help
+        Enter the custom MAC address in format XX:XX:XX:XX:XX:XX.
+        The address must be valid and unique in the network.
+
+    endif
+
+    config ESP_NOW_CHANNEL
+      int "ESP-NOW Channel"
+      default 1
+      help
+        Specify the Wi-Fi channel to be used for ESP-NOW communication.
+
+    config ESP_NOW_SEND_QUEUE_SIZE
+      int "ESP-NOW Send Queue Size"
+      default 5
+      help
+        Set the size of the queue used for sending ESP-NOW messages.
+
+    config ESP_NOW_RECIEVE_QUEUE_SIZE
+      int "ESP-NOW Receive Queue Size"
+      default 5
+      help
+        Set the size of the queue used for receiving ESP-NOW messages.
+
+    config ESP_NOW_RESULT_QUEUE_SIZE
+      int "ESP-NOW Result Queue Size"
+      default 2
+      help
+        Set the size of the queue used for storing ESP-NOW send result statuses.
+
+  endmenu
+
+  menu "Device Management Configuration"
+
+    config GW_DEVICE_LIST_SIZE
+      int "Maximum Number of Paired Devices"
+      default 32
+      help
+        Specify the maximum number of devices that can be paired with the gateway.
+
+    config DIC_DEVICE_LIST_SIZE
+      int "Maximum Number of Devices in Device List"
+      default 64
+      help
+        Specify the maximum number of devices that can be tracked by the Device Information Collector (DIC).
+        This value should be greater than the maximum number of paired devices (GW_DEVICE_LIST_SIZE).
+
+    config DIC_DEVICE_QUEUE_SIZE
+      int "Device Queue Size"
+      default 3
+      help
+        Set the size of the queue used by the Device Information Collector (DIC) for processing incoming device information.
+
+  endmenu
+
+  menu "MQTT Configuration"
+
+    config MQTT_WAIT_FOR_CONNECTION_MS
+      int "MQTT Connection Timeout (ms)"
+      default 10000
+      help
+        Specify the timeout in milliseconds to wait for a connection to the MQTT broker.
+
+    config MQTT_OUTBOX_LIMIT
+      int "MQTT Outbox Limit"
+      default 25
+      help
+        Set the maximum number of messages that can be stored in the MQTT outbox. 
+        This limits the number of unsent messages buffered while awaiting successful transmission.
+
+  endmenu
+
+  menu "Settings Configuration"
+
+    config SETTINGS_MAX_STR_LENGTH
+      int "Maximum Web Settings Field Length"
+      default 32
+      help
+        Specify the maximum length for string fields in settings, such as MQTT address, username, password, and topic.
+
+  endmenu
+
+  menu "Filesystem Configuration"
+
+    config FLASH_BASE_PATH
+      string "Base Path for Flash Storage"
+      default "/storage"
+      help
+        Specify the base path in the filesystem where the flash storage is mounted.
+        This path is used as the root directory for storing configuration and device data.
+
+    config SETTINGS_FILE_PATH
+      string "Path to Settings File"
+      default "/storage/settings.bin"
+      help
+        Specify the file path where the settings configuration file is stored in flash memory.
+
+    config GW_DEVICE_LIST_FILE_PATH
+      string "Path to Gateway Device List File"
+      default "/storage/device_list.bin"
+      help
+        Specify the file path where the list of paired devices for the gateway is stored in flash memory.
+
+  endmenu
 
 endmenu

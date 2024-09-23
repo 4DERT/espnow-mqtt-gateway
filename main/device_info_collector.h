@@ -5,11 +5,12 @@
 #include <stddef.h>
 #include <time.h>
 
+#include "sdkconfig.h"
 #include "gateway_logic.h"
 
 // Should be grater then GW_DEVICE_LIST
-#define DIC_DEVICE_LIST_SIZE 64
-#define DIC_DEVICE_QUEUE_SIZE 3
+#define DIC_DEVICE_LIST_SIZE CONFIG_DIC_DEVICE_LIST_SIZE
+#define DIC_DEVICE_QUEUE_SIZE CONFIG_DIC_DEVICE_QUEUE_SIZE
 
 typedef enum {
   DIC_AVAILABILITY_UNKNOWN,

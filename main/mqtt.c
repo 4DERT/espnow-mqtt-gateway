@@ -17,9 +17,9 @@ static SemaphoreHandle_t init_semaphore;
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data);
 static void log_error_if_nonzero(const char *message, int error_code);
 
-#define LAST_WILL_TOPIC_LEN (MAX_SETTINGS_LENGTH + sizeof(GW_GATEWAY_AVAILABILITY))
+#define LAST_WILL_TOPIC_LEN (SETTINGS_MAX_STR_LENGTH + sizeof(GW_GATEWAY_AVAILABILITY))
 
-char topic_prefix[MAX_SETTINGS_LENGTH];
+char topic_prefix[SETTINGS_MAX_STR_LENGTH];
 char last_will_topic[LAST_WILL_TOPIC_LEN];
 
 void mqtt_init() {

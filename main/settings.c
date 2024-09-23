@@ -11,13 +11,13 @@ static const char *TAG = "settings";
 settings_t current_settings;
 
 settings_param_t params[] = {
-    {"addr", "MQTT Address", TYPE_STRING, true, false, MAX_SETTINGS_LENGTH,
+    {"addr", "MQTT Address", TYPE_STRING, true, false, SETTINGS_MAX_STR_LENGTH,
      current_settings.mqtt_address_uri},
-    {"user", "MQTT Username", TYPE_STRING, false, false, MAX_SETTINGS_LENGTH,
+    {"user", "MQTT Username", TYPE_STRING, false, false, SETTINGS_MAX_STR_LENGTH,
      current_settings.mqtt_username},
-    {"pass", "MQTT Password", TYPE_STRING, false, true, MAX_SETTINGS_LENGTH,
+    {"pass", "MQTT Password", TYPE_STRING, false, true, SETTINGS_MAX_STR_LENGTH,
      current_settings.mqtt_password},
-    {"topic", "MQTT Topic", TYPE_STRING, true, false, MAX_SETTINGS_LENGTH,
+    {"topic", "MQTT Topic", TYPE_STRING, true, false, SETTINGS_MAX_STR_LENGTH,
      current_settings.mqtt_topic},
     {"pair", "Do not require pairing", TYPE_BOOL, false, false, sizeof(bool),
      &current_settings.is_pair_not_required}};

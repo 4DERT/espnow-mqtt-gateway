@@ -52,7 +52,7 @@ esp_err_t settings_post_handler(httpd_req_t *req) {
 
   printf("\n%s\n", buf);
 
-  char temp_buf[MAX_SETTINGS_LENGTH];
+  char temp_buf[SETTINGS_MAX_STR_LENGTH];
 
   for (int i = 0; i < settings_get_params_count(); i++) {
     if (httpd_query_key_value(buf, params[i].name, temp_buf,

@@ -3,9 +3,10 @@
 
 #include <stdbool.h>
 #include "mqtt_client.h"
+#include "sdkconfig.h"
 
-#define MQTT_WAIT_FOR_CONNECTION_MS 10000
-#define MQTT_OUTBOX_LIMIT 25
+#define MQTT_WAIT_FOR_CONNECTION_MS CONFIG_MQTT_WAIT_FOR_CONNECTION_MS
+#define MQTT_OUTBOX_LIMIT CONFIG_MQTT_OUTBOX_LIMIT
 
 void mqtt_init();
 void mqtt_connected_notify();

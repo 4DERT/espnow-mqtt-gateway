@@ -101,7 +101,7 @@ void gw_update_pair_message(const uint8_t mac[], const char* new_pair_msg) {
 }
 
 void gw_save_device_list_to_flash() {
-  FILE* file = fopen("/storage/device_list.bin", "wb");  // Otwarcie pliku do zapisu w trybie binarnym
+  FILE* file = fopen(GW_DEVICE_LIST_FILE_PATH, "wb");  
   if (file == NULL) {
     ESP_LOGE(TAG, "Failed to open file in write binary mode");
     return;
@@ -115,7 +115,7 @@ void gw_save_device_list_to_flash() {
 }
 
 void gw_load_device_list_from_flash() {
-  FILE* file = fopen("/storage/device_list.bin", "rb");  // Otwarcie pliku do odczytu w trybie binarnym
+  FILE* file = fopen(GW_DEVICE_LIST_FILE_PATH, "rb");  
   if (file == NULL) {
     ESP_LOGE(TAG, "Failed to open file in read binary mode");
     return;

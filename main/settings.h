@@ -3,9 +3,11 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include "flash_filesystem.h"
+#include "sdkconfig.h"
 
-#define MAX_SETTINGS_LENGTH 32
-#define SETTINGS_FILE_PATH "/storage/settings.bin"
+#define SETTINGS_MAX_STR_LENGTH CONFIG_SETTINGS_MAX_STR_LENGTH
+#define SETTINGS_FILE_PATH CONFIG_SETTINGS_FILE_PATH
 
 typedef enum { TYPE_STRING, TYPE_INT, TYPE_BOOL } settings_param_type_t;
 
@@ -20,10 +22,10 @@ typedef struct {
 } settings_param_t;
 
 typedef struct {
-  char mqtt_address_uri[MAX_SETTINGS_LENGTH];
-  char mqtt_username[MAX_SETTINGS_LENGTH];
-  char mqtt_password[MAX_SETTINGS_LENGTH];
-  char mqtt_topic[MAX_SETTINGS_LENGTH];
+  char mqtt_address_uri[SETTINGS_MAX_STR_LENGTH];
+  char mqtt_username[SETTINGS_MAX_STR_LENGTH];
+  char mqtt_password[SETTINGS_MAX_STR_LENGTH];
+  char mqtt_topic[SETTINGS_MAX_STR_LENGTH];
   bool is_pair_not_required;
 } settings_t;
 
