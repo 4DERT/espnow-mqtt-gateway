@@ -37,10 +37,7 @@ void app_main(void) {
   dic_init();
   esp_now_communication_init();
   mqtt_init();
-
   webserver_start();
 
-  while (1) {
-    vTaskDelay(pdMS_TO_TICKS(5000));
-  }
+  vTaskDelete(NULL);
 }
