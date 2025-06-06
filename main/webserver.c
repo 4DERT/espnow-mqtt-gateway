@@ -213,9 +213,31 @@ static httpd_uri_t rename_post_uri = {.uri = "/rename",
                                       .handler = handle_rename_request,
                                       .user_ctx = NULL};
 
+/* /reboot */
+esp_err_t reboot_get_handler(httpd_req_t *req) {
+  ESP_LOGI(TAG, "Rebooting...");
+
+  // Redirect to home page before rebooting
+  httpd_resp_set_status(req, "302 Found");
+  httpd_resp_set_hdr(req, "Location", "/");
+  httpd_resp_sendstr(req, "Redirecting to the main page...");
+
+  vTaskDelay(pdMS_TO_TICKS(100));
+
+  esp_restart();
+  return ESP_OK;
+}
+
+static httpd_uri_t reboot_uri = {.uri = "/reboot",
+                                 .method = HTTP_GET,
+                                 .handler = reboot_get_handler,
+                                 .user_ctx = NULL};
+
+// Web server start function
+// This function initializes the HTTP server and registers the URI handlers.
 httpd_handle_t webserver_start(void) {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-  config.max_uri_handlers = 10;
+  config.max_uri_handlers = 11;
   httpd_handle_t server = NULL;
   if (httpd_start(&server, &config) == ESP_OK) {
     httpd_register_uri_handler(server, &favicon);
@@ -229,6 +251,7 @@ httpd_handle_t webserver_start(void) {
     httpd_register_uri_handler(server, &pair_post_uri);
     httpd_register_uri_handler(server, &unpair_post_uri);
     httpd_register_uri_handler(server, &rename_post_uri);
+    httpd_register_uri_handler(server, &reboot_uri);
     ESP_LOGI(TAG, "ESP32 Web Server started");
   } else {
     ESP_LOGE(TAG, "ESP32 Web Server not started - ERROR");

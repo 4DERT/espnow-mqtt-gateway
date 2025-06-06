@@ -1,5 +1,5 @@
 FROM mcr.microsoft.com/devcontainers/base:noble
-RUN userdel -r ubuntu
+# RUN userdel -r ubuntu
 
 RUN apt-get update && apt-get install -y \
     git \
