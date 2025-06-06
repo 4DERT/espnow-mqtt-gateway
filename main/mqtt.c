@@ -2,6 +2,7 @@
 
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
+#include "esp_timer.h"
 #include "gateway_device_list.h"
 #include "gateway_logic.h"
 #include "mqtt_client.h"
@@ -21,6 +22,36 @@ static void log_error_if_nonzero(const char *message, int error_code);
 
 char topic_prefix[SETTINGS_MAX_STR_LENGTH];
 char last_will_topic[LAST_WILL_TOPIC_LEN];
+
+static esp_timer_handle_t reboot_timer;
+static bool is_reboot_timer_started = false;
+
+static void reboot_timer_callback(void *arg) {
+  ESP_LOGE(TAG, "MQTT not connected for 5 minutes, restarting system.");
+  esp_restart();
+}
+
+static void reboot_timer_start() {
+  if (is_reboot_timer_started) {
+    ESP_LOGW(TAG, "Reboot timer is already started");
+    return;
+  }
+
+  ESP_LOGI(TAG, "Starting reboot timer!");
+  is_reboot_timer_started = true;
+  esp_timer_start_once(reboot_timer, MQTT_REBOOT_TIMER_MIN * 60 * 1000000);
+}
+
+static void reboot_timer_stop() {
+  if (!is_reboot_timer_started) {
+    ESP_LOGW(TAG, "Reboot timer is not started");
+    return;
+  }
+
+  ESP_LOGI(TAG, "Stopping reboot timer");
+  is_reboot_timer_started = false;
+  esp_timer_stop(reboot_timer);
+}
 
 void mqtt_init() {
   init_semaphore = xSemaphoreCreateBinary();
@@ -42,6 +73,13 @@ void mqtt_init() {
     ESP_LOGW(TAG, "Broker address is not provided");
     return;
   }
+
+  const esp_timer_create_args_t reboot_timer_args = {
+    .callback = &reboot_timer_callback,
+    .name = "reboot_timer",
+  };
+  esp_timer_create(&reboot_timer_args, &reboot_timer);
+  reboot_timer_start();
 
   esp_mqtt_client_config_t mqtt_cfg = {
       .broker.address.uri = settings.mqtt_address_uri,
@@ -82,6 +120,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     case MQTT_EVENT_CONNECTED:
       ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
       is_connected = true;
+      reboot_timer_stop();
       
       mqtt_publish(GW_GATEWAY_AVAILABILITY, GW_AVAILABILITY_ONLINE, 0, 0, 1);
       gw_publish_paired_devices();
@@ -94,6 +133,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     case MQTT_EVENT_DISCONNECTED:
       ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
       is_connected = false;
+      reboot_timer_start();
       break;
 
     case MQTT_EVENT_SUBSCRIBED:

@@ -83,6 +83,13 @@ menu "Application configuration"
         Set the maximum number of messages that can be stored in the MQTT outbox. 
         This limits the number of unsent messages buffered while awaiting successful transmission.
 
+    config MQTT_REBOOT_TIMER_MIN
+      int "Device Reboot Timeout (min)"
+      default 5
+      help
+        Time in minutes to wait after MQTT disconnection before automatically rebooting the device.
+        This helps to ensure the system recovers if the broker remains unreachable.
+
   endmenu
 
   menu "Settings Configuration"
